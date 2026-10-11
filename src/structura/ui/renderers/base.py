@@ -103,6 +103,13 @@ class Renderer:
     def draw_under(self, surf, hint_slot, pulse: float, offset) -> None:
         """Structure furniture drawn beneath the elements (slots, labels, arrows)."""
 
+    def body(self, rect: pygame.Rect) -> pygame.Rect:
+        """An element's whole drawn shape, given its value box; outlines and clicks use it."""
+        return rect
+
+    def draw_attachment(self, surf, eid: int, rect: pygame.Rect, fill) -> None:
+        """Extra parts of an element drawn right after its value box (e.g. a next field)."""
+
     def enter(self, eid: int, target: tuple[float, float]) -> None:
         """Animate a new element in. By default it grows in place."""
         self.pos[eid] = [target[0], target[1], 0.0]
@@ -207,7 +214,7 @@ class Renderer:
         if self.model is None:
             return []
         layout, w = self.layout(), self.element_size()
-        out = [Target("node", key, pygame.Rect(int(layout[eid][0]), int(layout[eid][1]), w, w))
+        out = [Target("node", key, self.body(pygame.Rect(int(layout[eid][0]), int(layout[eid][1]), w, w)))
                for key, eid in zip(self.keys(), self.element_ids())]
         if self.show_slots:
             out += self.slot_targets()
@@ -248,17 +255,19 @@ class Renderer:
             rect = pygame.Rect(0, 0, size, size)
             rect.center = (x + w / 2 + dx + ox, y + w / 2 + dy + oy)
             fill = mix(colour or theme.IDLE, theme.GOOD, self.celebration(eid))
+            whole = self.body(rect)
             if colour:
-                glow = pygame.Surface((rect.w + 24, rect.h + 24), pygame.SRCALPHA)
+                glow = pygame.Surface((whole.w + 24, whole.h + 24), pygame.SRCALPHA)
                 pygame.draw.rect(glow, (*colour, 70), glow.get_rect(), border_radius=18)
-                surf.blit(glow, (rect.x - 12, rect.y - 12))
+                surf.blit(glow, (whole.x - 12, whole.y - 12))
             if eid in self.shakes:
                 fill = mix(fill, theme.BAD, 0.7)
             pygame.draw.rect(surf, fill, rect, border_radius=10)
+            self.draw_attachment(surf, eid, rect, fill)
             if key in selected:
-                pygame.draw.rect(surf, theme.SELECT, rect.inflate(10, 10), 3, border_radius=12)
+                pygame.draw.rect(surf, theme.SELECT, whole.inflate(10, 10), 3, border_radius=12)
             if key in hinted:
-                pygame.draw.rect(surf, mix(theme.ACTIVE, theme.TEXT, pulse), rect.inflate(16, 16), 3, border_radius=14)
+                pygame.draw.rect(surf, mix(theme.ACTIVE, theme.TEXT, pulse), whole.inflate(16, 16), 3, border_radius=14)
             dark = fill != theme.IDLE
             img = f.render(str(value), True, (15, 18, 30) if dark else theme.TEXT)
             if s < 0.98:

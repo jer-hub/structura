@@ -1,12 +1,17 @@
 """Draws a singly linked list: a head pointer, nodes in a row joined by arrows,
 and null at the end. The row is only for reading; the arrows are the structure.
 
+Each node is drawn in two parts, a value box and a next field; its pointer arrow
+leaves from a dot in the next field. Pointers that are variables (head, cur) are
+labelled boxes too, so every arrow starts from something that holds it.
+
 Linked-list-specific motion:
   * arrows follow the nodes as they move, so inserts and deletes re-route them;
   * while a removed node fades, the arrow that now skips it bows over it;
   * a "cur" marker glides to whichever node the current walk Step is on.
 
-Slots are keyed HEAD (insert at the head) and i (insert after position i).
+Slots are keyed HEAD (insert at the head) and i (insert after position i). Each
+is a "+" badge hanging below the arrow it would split, so the arrows stay visible.
 Arrows run from HEAD or a node, to a node or None (null).
 """
 from __future__ import annotations
@@ -22,9 +27,15 @@ from ..fx import mix
 from .base import Renderer, Target
 
 HEAD = "head"     # the head pointer: an arrow's start, and the insert-at-head slot key
-HEAD_W = 56       # room for the "head" label
-NULL_W = 50       # room for "null"
-MAX_GAP = 60      # longest arrow between nodes
+FIELD = 0.36      # next field width, as a fraction of the value box
+HEAD_BOX = 30     # the head pointer's box
+HEAD_W = 44       # room for the head box
+NULL_SIZE = (52, 28)
+NULL_W = 56       # room for the null box
+MIN_GAP, MAX_GAP = 28, 60      # arrow length between nodes
+BADGE_R = 12      # insert badge radius
+BADGE_DROP = 28   # how far below the row a badge hangs
+ARROW = mix(theme.MUTED, theme.TEXT, 0.35)
 
 
 class LinkedListRenderer(Renderer):
@@ -38,41 +49,85 @@ class LinkedListRenderer(Renderer):
         return list(self.model.nodes)
 
     def _track_width(self) -> float:
-        return self.rect.w - 40 - HEAD_W - NULL_W
+        return self.rect.w - 24 - HEAD_W - NULL_W
 
     def element_size(self) -> int:
+        """Value box side: as big as fits with arrows about 0.6 of a node long."""
         n = len(self.model.nodes)
-        return int(max(40, min(76, (self._track_width() - MAX_GAP * (n + 1)) / max(n, 1))))
+        return int(max(44, min(76, self._track_width() / (n * (1 + FIELD) + 0.6 * (n + 1)))))
 
     def gap(self) -> float:
-        """Arrow length: as long as fits, so long lists still fit the board."""
+        """Arrow length: whatever the nodes leave, so long lists still fit the board."""
         n, w = len(self.model.nodes), self.element_size()
-        return max(30, min(MAX_GAP, (self._track_width() - n * w) / (n + 1)))
+        return max(MIN_GAP, min(MAX_GAP, (self._track_width() - n * w * (1 + FIELD)) / (n + 1)))
+
+    def _unit(self) -> float:
+        """A node's full width, value box plus next field."""
+        return self.element_size() * (1 + FIELD)
 
     def _head_x(self) -> float:
-        """Where the head pointer's arrow starts."""
-        n, w, g = len(self.model.nodes), self.element_size(), self.gap()
-        return self.rect.centerx - (HEAD_W + (n + 1) * g + n * w + NULL_W) / 2 + HEAD_W
+        """Where the head pointer's arrow starts: the head box's right edge."""
+        n, g = len(self.model.nodes), self.gap()
+        return self.rect.centerx - (HEAD_W + (n + 1) * g + n * self._unit() + NULL_W) / 2 + HEAD_W
 
     def layout(self):
-        w, g = self.element_size(), self.gap()
+        w, g, unit = self.element_size(), self.gap(), self._unit()
         x0 = self._head_x() + g
         y = self.rect.centery - w / 2
-        return {eid: (x0 + i * (w + g), y) for i, eid in enumerate(self.element_ids())}
+        return {eid: (x0 + i * (unit + g), y) for i, eid in enumerate(self.element_ids())}
 
-    def slot_targets(self):
-        w, g = self.element_size(), self.gap()
-        y = self.rect.centery - w / 2
+    def body(self, rect):
+        return pygame.Rect(rect.x, rect.y, round(rect.w * (1 + FIELD)), rect.h)
 
-        def slot(key, x):
-            return Target("slot", key, pygame.Rect(int(x + 6), int(y - 12), int(g - 12), w + 24))
+    def head_box(self) -> pygame.Rect:
+        r = pygame.Rect(0, 0, HEAD_BOX, HEAD_BOX)
+        r.midright = (int(self._head_x()), self.rect.centery)
+        return r
 
+    def null_box(self) -> pygame.Rect:
+        ids = self.element_ids()
+        left = self.next_field(ids[-1]).right + self.gap() if ids else self._head_x() + self.gap()
+        r = pygame.Rect(0, 0, *NULL_SIZE)
+        r.midleft = (int(left), self.rect.centery)
+        return r
+
+    def next_field(self, eid: int) -> pygame.Rect:
+        """Where a node's next field is right now (it scales and travels with the node)."""
+        w = self.element_size()
+        x, y, s = self.pos[eid]
+        side = w * s
+        left = x + w / 2 + side / 2
+        return pygame.Rect(int(left), int(y + w / 2 - side / 2), max(1, int(side * FIELD)), max(1, int(side)))
+
+    def arrow_start(self, end) -> tuple[float, float]:
+        """The dot an arrow leaves from: the head box, or a node's next field."""
+        r = self.head_box() if end == HEAD else self.next_field(end)
+        return r.center
+
+    # ---- slots ------------------------------------------------------------------
+    def _slot_lefts(self) -> list[tuple[object, float]]:
+        """(slot key, x where its gap starts) for every slot the Puzzle's ops allow."""
         out = []
         if self.allows("insert_head"):
-            out.append(slot(HEAD, self._head_x()))
+            out.append((HEAD, self._head_x()))
         if self.allows("insert_after"):
-            layout = self.layout()
-            out += [slot(i, layout[eid][0] + w) for i, eid in enumerate(self.element_ids())]
+            w, layout = self.element_size(), self.layout()
+            out += [(i, layout[eid][0] + w * (1 + FIELD)) for i, eid in enumerate(self.element_ids())]
+        return out
+
+    def badge_center(self, key) -> tuple[float, float]:
+        g = self.gap()
+        x = dict(self._slot_lefts())[key] + g / 2
+        return x, self.rect.centery + self.element_size() / 2 + BADGE_DROP
+
+    def slot_targets(self):
+        """The whole gap is clickable, from just above the arrow down past the badge."""
+        g = self.gap()
+        top = self.rect.centery - 14
+        out = []
+        for key, left in self._slot_lefts():
+            bottom = self.badge_center(key)[1] + BADGE_R + 6
+            out.append(Target("slot", key, pygame.Rect(int(left + 2), int(top), int(g - 4), int(bottom - top))))
         return out
 
     def slot_move(self, key, value):
@@ -97,6 +152,13 @@ class LinkedListRenderer(Renderer):
 
         return [(a, b, any(x_of(a) < gx < x_of(b) for gx in ghost_xs)) for a, b in zip(chain, chain[1:])]
 
+    def _arrow_end(self, end) -> tuple[float, float]:
+        if end is None:
+            return self.null_box().midleft
+        w = self.element_size()
+        x, y, s = self.pos[end]
+        return x + w / 2 - w * s / 2, y + w / 2
+
     # ---- the cur marker -------------------------------------------------------
     def on_step(self, step):
         eid = step.ids[0] if step is not None and step.kind == "walk" and step.ids else None
@@ -113,67 +175,82 @@ class LinkedListRenderer(Renderer):
             self.cursor_x = approach(self.cursor_x, target, dt)
 
     # ---- drawing --------------------------------------------------------------
-    def _anchor(self, end, side: str, w: float) -> tuple[float, float]:
-        """Where an arrow leaves (side "out") or reaches (side "in") one of its ends."""
-        cy = self.rect.centery
-        if end == HEAD:
-            return self._head_x(), cy
-        if end is None:
-            ids = self.element_ids()
-            x = self.pos[ids[-1]][0] + w + self.gap() if ids else self._head_x() + self.gap()
-            return x, cy
-        x, y, s = self.pos[end]
-        half = w * s / 2
-        return x + w / 2 + (half if side == "out" else -half), y + w / 2
-
     def draw_under(self, surf, hint_slot, pulse, offset):
         ox, oy = offset
         w = self.element_size()
+
+        # Insert badges hang below the arrow they would split, on a dotted stem.
+        if self.show_slots:
+            for key, _ in self._slot_lefts():
+                hinted = key == hint_slot
+                colour = mix(theme.GOOD, theme.ACTIVE, pulse) if hinted else theme.GOOD
+                bx, by = self.badge_center(key)
+                c = (int(bx + ox), int(by + oy))
+                for y in range(int(self.rect.centery + 6 + oy), int(c[1] - BADGE_R), 6):
+                    pygame.draw.line(surf, colour, (c[0], y), (c[0], y + 2), 2)
+                r = BADGE_R + 3 * hinted
+                pygame.draw.circle(surf, mix(theme.PANEL, colour, 0.18), c, r)
+                pygame.draw.circle(surf, colour, c, r, 2)
+                pygame.draw.line(surf, colour, (c[0] - 5, c[1]), (c[0] + 5, c[1]), 2)
+                pygame.draw.line(surf, colour, (c[0], c[1] - 5), (c[0], c[1] + 5), 2)
+
         for a, b, bowed in self.arrows():
-            x1, y1 = self._anchor(a, "out", w)
-            x2, y2 = self._anchor(b, "in", w)
+            x1, y1 = self.arrow_start(a)
+            x2, y2 = self._arrow_end(b)
             _arrow(surf, (x1 + ox, y1 + oy), (x2 + ox, y2 + oy), bow=w * 1.1 if bowed else 0.0)
 
-        # A slot is a "+" badge sitting on the arrow it would split; the whole gap is clickable.
-        if self.show_slots:
-            for t in self.slot_targets():
-                hinted = t.key == hint_slot
-                colour = mix(theme.GOOD, theme.ACTIVE, pulse) if hinted else theme.GOOD
-                c = (t.rect.centerx + ox, t.rect.centery + oy)
-                pygame.draw.circle(surf, theme.BG, c, 13)
-                pygame.draw.circle(surf, colour, c, 13 + 3 * hinted, 2)
-                pygame.draw.line(surf, colour, (c[0] - 6, c[1]), (c[0] + 6, c[1]), 2)
-                pygame.draw.line(surf, colour, (c[0], c[1] - 6), (c[0], c[1] + 6), 2)
+        # head: a pointer variable, labelled, holding the first arrow.
+        hb = self.head_box().move(ox, oy)
+        pygame.draw.rect(surf, theme.PANEL, hb, border_radius=6)
+        pygame.draw.rect(surf, theme.ACTIVE, hb, 2, border_radius=6)
+        pygame.draw.line(surf, ARROW, hb.center, hb.midright, 2)
+        pygame.draw.circle(surf, theme.ACTIVE, hb.center, 4)
+        theme.draw_text(surf, "head", (hb.centerx, hb.y - 24), 17, theme.ACTIVE, bold=True, center=True)
 
-        cy = self.rect.centery + oy
-        theme.draw_text(surf, "head", (self._head_x() - HEAD_W / 2 + ox, cy - 11), 18, theme.ACTIVE,
-                        center=True)
-        null_x, _ = self._anchor(None, "in", w)
-        theme.draw_text(surf, "null", (null_x + 22 + ox, cy - 10), 17, theme.MUTED, center=True)
+        nb = self.null_box().move(ox, oy)
+        pygame.draw.rect(surf, theme.MUTED, nb, 2, border_radius=nb.h // 2)
+        theme.draw_text(surf, "null", (nb.centerx, nb.y + 3), 16, theme.MUTED, center=True)
 
         if self.cursor is not None:
-            top = self.rect.centery - w / 2 - 40 + oy
-            theme.draw_text(surf, "cur", (self.cursor_x + ox, top - 6), 17, theme.ACTIVE, center=True)
-            tip = (self.cursor_x + ox, top + 30)
-            pygame.draw.polygon(surf, theme.ACTIVE, [(tip[0] - 6, tip[1] - 10), (tip[0] + 6, tip[1] - 10), tip])
+            top = self.rect.centery - w / 2 - 44 + oy
+            label = theme.font(16, bold=True).render("cur", True, theme.BG)
+            pill = label.get_rect(center=(int(self.cursor_x + ox), int(top + 10))).inflate(14, 4)
+            pygame.draw.rect(surf, theme.ACTIVE, pill, border_radius=pill.h // 2)
+            surf.blit(label, label.get_rect(center=pill.center))
+            tip = (self.cursor_x + ox, top + 36)
+            pygame.draw.line(surf, theme.ACTIVE, (tip[0], pill.bottom), (tip[0], tip[1] - 6), 2)
+            pygame.draw.polygon(surf, theme.ACTIVE, [(tip[0] - 6, tip[1] - 8), (tip[0] + 6, tip[1] - 8), tip])
+
+    def draw_attachment(self, surf, eid, rect, fill):
+        """The next field: joined to the value box, a shade darker, with the pointer's dot."""
+        if rect.w < 4:
+            return
+        radius = 10
+        field = pygame.Rect(rect.right - radius, rect.y, round(rect.w * FIELD) + radius, rect.h)
+        pygame.draw.rect(surf, mix(fill, theme.BG, 0.4), field,
+                         border_top_right_radius=radius, border_bottom_right_radius=radius)
+        pygame.draw.line(surf, mix(fill, theme.BG, 0.65), (rect.right, rect.y + 3), (rect.right, rect.bottom - 4), 2)
+        dot = ((rect.right + field.right) // 2, rect.centery)
+        pygame.draw.line(surf, ARROW, dot, (field.right, dot[1]), 2)
+        pygame.draw.circle(surf, theme.TEXT, dot, max(2, rect.w // 16))
 
 
 def _arrow(surf, start, end, bow: float = 0.0) -> None:
     """A pointer arrow, straight or bowed upward by `bow` pixels."""
-    colour = theme.MUTED
     if bow:
         mid = ((start[0] + end[0]) / 2, (start[1] + end[1]) / 2 - 2 * bow)
         pts = [(_bezier(start[0], mid[0], end[0], t / 16), _bezier(start[1], mid[1], end[1], t / 16))
                for t in range(17)]
     else:
         pts = [start, end]
-    pygame.draw.lines(surf, colour, False, pts, 2)
     (x1, y1), (x2, y2) = pts[-2], pts[-1]
     ang = math.atan2(y2 - y1, x2 - x1)
-    pygame.draw.polygon(surf, colour, [
+    back = (x2 - 9 * math.cos(ang), y2 - 9 * math.sin(ang))
+    pygame.draw.lines(surf, ARROW, False, [*pts[:-1], back], 2)
+    pygame.draw.polygon(surf, ARROW, [
         (x2, y2),
-        (x2 - 10 * math.cos(ang - 0.45), y2 - 10 * math.sin(ang - 0.45)),
-        (x2 - 10 * math.cos(ang + 0.45), y2 - 10 * math.sin(ang + 0.45)),
+        (x2 - 11 * math.cos(ang - 0.42), y2 - 11 * math.sin(ang - 0.42)),
+        (x2 - 11 * math.cos(ang + 0.42), y2 - 11 * math.sin(ang + 0.42)),
     ])
 
 

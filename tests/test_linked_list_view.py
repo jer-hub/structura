@@ -109,3 +109,46 @@ def test_cur_marker_walks_to_the_node_of_each_walk_step():
     assert r.cursor_x == pytest.approx(r.center_of(1)[0], abs=1)
     r.on_step(None)
     assert r.cursor is None
+
+
+# ---- reading the board: node anatomy, pointers, insert badges ----------------------
+def test_each_node_has_a_next_field_that_its_arrow_leaves_from():
+    _, r = fresh()
+    a, b, _ = r.element_ids()
+    x, y, _ = r.pos[a]
+    w = r.element_size()
+    field = r.next_field(a)
+    assert field.left >= x + w - 1, "the next field sits to the right of the value"
+    assert field.collidepoint(r.arrow_start(a)), "the pointer arrow starts inside the next field"
+
+
+def test_clicking_a_nodes_next_field_counts_as_clicking_the_node():
+    _, r = fresh()
+    a = r.eid_of(0)
+    node = next(t.rect for t in r.targets() if t.kind == "node" and t.key == 0)
+    assert node.collidepoint(r.next_field(a).center)
+
+
+def test_insert_badges_sit_below_the_row_so_arrows_stay_visible():
+    _, r = fresh()
+    r.ops, r.show_slots = {"insert_head", "insert_after"}, True
+    w = r.element_size()
+    row_bottom = r.rect.centery + w / 2
+    for t in r.slot_targets():
+        assert r.badge_center(t.key)[1] > row_bottom
+
+
+def test_slot_and_node_targets_never_overlap():
+    _, r = fresh((1, 2, 3, 4, 5, 6, 7))
+    r.ops, r.show_slots = {"insert_head", "insert_after", "delete"}, True
+    targets = r.targets()
+    nodes = [t.rect for t in targets if t.kind == "node"]
+    for s in (t.rect for t in targets if t.kind == "slot"):
+        assert s.collidelist(nodes) == -1
+
+
+def test_seven_nodes_stay_readable():
+    _, r = fresh((1, 2, 3, 4, 5, 6, 7))
+    assert r.element_size() >= 48
+    ids = r.element_ids()
+    assert r.next_field(ids[-1]).right < r.null_box().left
