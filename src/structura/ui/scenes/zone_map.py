@@ -1,0 +1,75 @@
+"""The Zone Map: Zones as nodes, paths between them, and profile actions."""
+from __future__ import annotations
+
+import pygame
+
+from ...persistence import progress, report
+from .. import theme
+from ..app import SIZE, Scene
+from ..widgets import Button, Row
+
+MAP = pygame.Rect(40, 110, SIZE[0] - 80, SIZE[1] - 210)
+
+
+class ZoneMapScene(Scene):
+    def __init__(self, app):
+        super().__init__(app)
+        self._build()
+
+    def _pos(self, zone):
+        return (int(MAP.x + zone.map_pos[0] * MAP.w), int(MAP.y + zone.map_pos[1] * MAP.h))
+
+    def _build(self):
+        results = self.app.results()
+        self.buttons = []
+        for z in self.app.zones:
+            x, y = self._pos(z)
+            w = max(220, theme.font(20).size(z.name)[0] + 40)
+            open_ = progress.zone_unlocked(z, self.app.zones, results)
+            self.buttons.append(Button(z.name, pygame.Rect(x - w // 2, y - 24, w, 48),
+                                       lambda z=z: self.app.open_zone(z), enabled=open_, accent=z.color))
+        row = Row(40, SIZE[1] - 72)
+        lang = self.app.profile.language
+        self.buttons += [
+            row.add("Export Progress Report", self._export, accent=theme.GOOD),
+            row.add(f"Code: {'Java' if lang == 'java' else 'Python'}", self._toggle_language),
+            row.add("Switch Profile", self._switch),
+        ]
+
+    def _export(self):
+        path = report.export(self.app.profile, self.app.results(), self.app.zones, self.app.report_dir)
+        self.message = f"Saved {path}. Attach this file to your Google Classroom assignment."
+
+    def _toggle_language(self):
+        p = self.app.profile
+        p.language = "python" if p.language == "java" else "java"
+        self.app.store.update_profile(p)
+        self._build()
+
+    def _switch(self):
+        from .profiles import ProfileScene
+        self.app.profile = None
+        self.app.go(ProfileScene(self.app))
+
+    def draw(self, surf):
+        p = self.app.profile
+        theme.draw_text(surf, "The Datasphere", (40, 24), 34, bold=True)
+        theme.draw_text(surf, f"{p.name}  ·  {p.student_id}", (40, 68), 18, theme.MUTED)
+        results = self.app.results()
+        by_id = {z.id: z for z in self.app.zones}
+        for z in self.app.zones:
+            for r in z.requires:
+                if r in by_id:
+                    pygame.draw.line(surf, theme.PANEL_EDGE, self._pos(by_id[r]), self._pos(z), 4)
+        super().draw(surf)
+        for z in self.app.zones:
+            got, total = progress.zone_stars(z, results)
+            x, y = self._pos(z)
+            if progress.zone_unlocked(z, self.app.zones, results):
+                theme.stars(surf, (x - 34, y + 41), 1, size=16, total=1)
+                theme.draw_text(surf, f"{got} / {total}", (x + 8, y + 30), 17, theme.STAR, center=True)
+            else:
+                theme.draw_text(surf, "locked", (x, y + 30), 17, theme.DISABLED, center=True)
+        theme.draw_text(surf, "More Zones open as they are built.", (SIZE[0] - 40 - 320, 68), 17, theme.MUTED)
+        if self.message:
+            theme.draw_text(surf, self.message, (40, SIZE[1] - 118), 17, theme.GOOD, width=SIZE[0] - 80)
