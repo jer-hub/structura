@@ -1,9 +1,10 @@
 """A Zone's page: its Lesson and its Puzzles, unlocked in order.
 
-Stages are grouped into two columns, Learn and Guided on the left and Challenge
-and Boss on the right, so the path reads top to bottom, left to right. Each card
-shows its step number, whether it is done or locked, and its Stars; the card to
-play next is marked.
+The Lesson comes first, then the Puzzles grouped by Stage in two columns, Guided
+on the left and Challenge and Boss on the right, so the path reads top to
+bottom, left to right. Each card shows its number in that order, its Stage and
+Puzzle Type, whether it is done or locked, and its Stars; the card to play next
+is marked.
 """
 from __future__ import annotations
 
@@ -17,8 +18,7 @@ from ..app import SIZE, Scene
 from ..fx import mix
 from ..widgets import Button
 
-COLUMNS = (("learn", "guided"), ("challenge", "boss"))
-SECTION = {"learn": "Learn", "guided": "Guided", "challenge": "Challenge", "boss": "Boss"}
+COLUMNS = (("guided",), ("challenge", "boss"))     # Stages per column; the Lesson heads the first
 CARD_W, CARD_H = 560, 62
 CARD_GAP = 12
 HEADING_H = 34
@@ -26,11 +26,11 @@ TOP = 178
 
 
 @dataclass
-class StageCard(Button):
+class ZoneCard(Button):
     """A Lesson or Puzzle on the Zone page."""
 
-    step: int = 0                 # 0 for the Lesson
-    tag: str = ""                 # e.g. "Trace", shown under the title
+    number: int = 0               # the Puzzle's place in unlock order; 0 for the Lesson
+    subtitle: str = ""            # e.g. "Guided · Trace", shown under the title
     stars: int | None = None      # None until played
     next_up: bool = False
     boss: bool = False
@@ -48,26 +48,28 @@ class StageCard(Button):
         pygame.draw.rect(surf, bg, r, border_radius=10)
         pygame.draw.rect(surf, edge, r, 2 + self.next_up, border_radius=10)
 
-        # The step badge: a number, a check once played, or a lock.
+        # The badge: a check once played, else the number (dimmed while locked).
         c = (r.x + 34, r.centery)
         if not self.enabled:
             pygame.draw.circle(surf, theme.PANEL_EDGE, c, 18)
-            _lock(surf, c, theme.MUTED)
+            img = theme.font(18, bold=True).render(str(self.number), True, theme.DISABLED)
+            surf.blit(img, img.get_rect(center=c))
         elif self.stars is not None:
             pygame.draw.circle(surf, theme.GOOD, c, 18)
             pygame.draw.lines(surf, theme.BG, False, [(c[0] - 8, c[1]), (c[0] - 2, c[1] + 6), (c[0] + 8, c[1] - 6)], 3)
         else:
             pygame.draw.circle(surf, accent if self.next_up else theme.PANEL_EDGE, c, 18)
-            label = "i" if self.step == 0 else str(self.step)
+            label = "i" if self.number == 0 else str(self.number)
             colour = theme.BG if self.next_up else theme.TEXT
             img = theme.font(18, bold=True).render(label, True, colour)
             surf.blit(img, img.get_rect(center=c))
 
         title_colour = theme.TEXT if self.enabled else theme.DISABLED
         theme.draw_text(surf, self.label, (r.x + 66, r.y + 8), 21, title_colour, bold=self.next_up)
-        sub = self.tag if self.enabled else f"{self.tag}  ·  finish the one before to unlock"
         sub_colour = (theme.BAD if self.boss else theme.MUTED) if self.enabled else theme.DISABLED
-        theme.draw_text(surf, sub, (r.x + 66, r.y + 35), 15, sub_colour)
+        theme.draw_text(surf, self.subtitle, (r.x + 66, r.y + 35), 15, sub_colour)
+        if not self.enabled:
+            _lock(surf, (r.right - 28, r.centery), theme.MUTED)
 
         if self.next_up:
             img = theme.font(15, bold=True).render("NEXT", True, theme.BG)
@@ -91,40 +93,48 @@ class ZoneScene(Scene):
         self.zone = zone
         self.results = results = app.results()
         self.next_up = self._next_up()
-        self.headings: list[tuple[str, tuple[int, int]]] = []
+        self.headings: list[tuple[str, tuple[int, int]]] = []     # (Stage, where its heading goes)
         self.buttons = [Button("Zone Map", pygame.Rect(40, SIZE[1] - 72, 160, 44), app.open_map)]
 
-        groups: dict[str, list[StageCard]] = {k: [] for k in SECTION}
+        lesson = None
         if zone.lesson:
-            groups["learn"].append(StageCard("Lesson", pygame.Rect(0, 0, CARD_W, CARD_H),
-                                             lambda: app.open_lesson(zone), accent=zone.color,
-                                             tag="How it works", next_up=self.next_up == "Lesson"))
+            lesson = ZoneCard("Lesson", pygame.Rect(0, 0, CARD_W, CARD_H), lambda: app.open_lesson(zone),
+                              accent=zone.color, subtitle="How it works", next_up=self.next_up is zone.lesson)
+        groups: dict[str, list[ZoneCard]] = {stage: [] for stage in theme.STAGE_LABEL}
         for i, p in enumerate(zone.puzzles):
             r = results.get(p.id)
-            groups[p.stage].append(StageCard(
+            unlocked = progress.puzzle_unlocked(zone, i, results)
+            subtitle = f"{theme.STAGE_LABEL[p.stage]} · {p.type.title()}"
+            if not unlocked:
+                subtitle += f"  ·  finish {zone.puzzles[i - 1].title} to unlock"
+            groups[p.stage].append(ZoneCard(
                 p.title, pygame.Rect(0, 0, CARD_W, CARD_H), lambda p=p: app.open_puzzle(zone, p),
-                enabled=progress.puzzle_unlocked(zone, i, results), accent=zone.color, step=i + 1,
-                tag=p.type.title(), stars=r.stars if r else None,
-                next_up=self.next_up == p.title, boss=p.stage == "boss"))
+                enabled=unlocked, accent=zone.color, number=i + 1, subtitle=subtitle,
+                stars=r.stars if r else None, next_up=self.next_up is p, boss=p.stage == "boss"))
 
-        for col, sections in enumerate(COLUMNS):
+        for col, stages in enumerate(COLUMNS):
             x, y = 40 + col * (CARD_W + 80), TOP
-            for key in sections:
-                if not groups[key]:
+            if col == 0 and lesson:
+                lesson.rect.topleft = (x, y + HEADING_H)
+                self.buttons.append(lesson)
+                y += HEADING_H + CARD_H + CARD_GAP + 8
+            for stage in stages:
+                if not groups[stage]:
                     continue
-                self.headings.append((SECTION[key], (x, y)))
+                self.headings.append((stage, (x, y)))
                 y += HEADING_H
-                for card in groups[key]:
+                for card in groups[stage]:
                     card.rect.topleft = (x, y)
                     self.buttons.append(card)
                     y += CARD_H + CARD_GAP
                 y += 8
 
-    def _next_up(self) -> str | None:
-        """The Lesson until something is played, then the first unplayed Puzzle."""
-        if not any(p.id in self.results for p in self.zone.puzzles):
-            return "Lesson" if self.zone.lesson else self.zone.puzzles[0].title
-        return next((p.title for p in self.zone.puzzles if p.id not in self.results), None)
+    def _next_up(self):
+        """The Lesson until a Puzzle is played, then the first unplayed Puzzle; None when cleared."""
+        played = any(p.id in self.results for p in self.zone.puzzles)
+        if not played and self.zone.lesson:
+            return self.zone.lesson
+        return next((p for p in self.zone.puzzles if p.id not in self.results), None)
 
     def draw(self, surf):
         z = self.zone
@@ -143,7 +153,7 @@ class ZoneScene(Scene):
             pygame.draw.rect(surf, z.color, (bar.x, bar.y, bar.w * cleared / len(z.puzzles), bar.h), border_radius=4)
         theme.draw_text(surf, f"{cleared} of {len(z.puzzles)} Puzzles cleared", (right - 300, 106), 15, theme.MUTED)
 
-        for text, (x, y) in self.headings:
-            colour = theme.BAD if text == "Boss" else theme.MUTED
-            theme.draw_text(surf, text.upper(), (x + 2, y + 6), 15, colour, bold=True)
+        for stage, (x, y) in self.headings:
+            colour = theme.BAD if stage == "boss" else theme.MUTED
+            theme.draw_text(surf, theme.STAGE_LABEL[stage].upper(), (x + 2, y + 6), 15, colour, bold=True)
         super().draw(surf)

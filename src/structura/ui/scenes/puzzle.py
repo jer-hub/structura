@@ -15,7 +15,6 @@ from ..widgets import Row
 
 VIZ = pygame.Rect(30, 110, 820, 400)
 CODE = pygame.Rect(870, 110, 380, 400)
-STAGE = {"guided": "Guided", "challenge": "Challenge", "boss": "BOSS"}
 # Ops made with a button rather than on the board, and whether they take the next Tray value.
 BUTTON_OPS = {"push": True, "pop": False, "enqueue": True, "dequeue": False}
 
@@ -195,7 +194,7 @@ class PuzzleScene(Scene):
 
     def draw(self, surf):
         s, p = self.session, self.puzzle
-        theme.draw_text(surf, f"{self.zone.name}  ·  {STAGE[p.stage]}", (30, 14), 17, self.zone.color)
+        theme.draw_text(surf, f"{self.zone.name}  ·  {theme.STAGE_LABEL[p.stage]}", (30, 14), 17, self.zone.color)
         theme.draw_text(surf, p.title, (30, 36), 30, bold=True)
         theme.draw_text(surf, f"Moves {s.moves}   Par {reference_count(p)}   Glitches {s.glitches}   "
                               f"Hints {s.hints_used}", (SIZE[0] - 30 - 420, 46), 18, theme.MUTED)

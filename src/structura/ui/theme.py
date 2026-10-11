@@ -18,6 +18,9 @@ SELECT = (120, 220, 255)
 DISABLED = (70, 76, 96)
 STAR = (255, 210, 80)
 
+# Puzzle Stage -> its name on screen.
+STAGE_LABEL = {"guided": "Guided", "challenge": "Challenge", "boss": "Boss"}
+
 # Step kind -> highlight colour.
 STEP_COLOURS = {
     "compare": ACTIVE, "visit": ACTIVE, "walk": ACTIVE, "go_left": ACTIVE, "go_right": ACTIVE,

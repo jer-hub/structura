@@ -59,11 +59,11 @@ class LinkedListRenderer(Renderer):
     def gap(self) -> float:
         """Arrow length: whatever the nodes leave, so long lists still fit the board."""
         n, w = len(self.model.nodes), self.element_size()
-        return max(MIN_GAP, min(MAX_GAP, (self._track_width() - n * w * (1 + FIELD)) / (n + 1)))
+        return max(MIN_GAP, min(MAX_GAP, (self._track_width() - n * _node_w(w)) / (n + 1)))
 
     def _unit(self) -> float:
-        """A node's full width, value box plus next field."""
-        return self.element_size() * (1 + FIELD)
+        """A node's full width at rest."""
+        return _node_w(self.element_size())
 
     def _head_x(self) -> float:
         """Where the head pointer's arrow starts: the head box's right edge."""
@@ -77,7 +77,7 @@ class LinkedListRenderer(Renderer):
         return {eid: (x0 + i * (unit + g), y) for i, eid in enumerate(self.element_ids())}
 
     def body(self, rect):
-        return pygame.Rect(rect.x, rect.y, round(rect.w * (1 + FIELD)), rect.h)
+        return pygame.Rect(rect.x, rect.y, round(_node_w(rect.w)), rect.h)
 
     def head_box(self) -> pygame.Rect:
         r = pygame.Rect(0, 0, HEAD_BOX, HEAD_BOX)
@@ -91,13 +91,18 @@ class LinkedListRenderer(Renderer):
         r.midleft = (int(left), self.rect.centery)
         return r
 
-    def next_field(self, eid: int) -> pygame.Rect:
-        """Where a node's next field is right now (it scales and travels with the node)."""
+    def _value_box(self, eid: int) -> pygame.Rect:
+        """Where a node's value box is right now: it scales about its centre and travels."""
         w = self.element_size()
         x, y, s = self.pos[eid]
-        side = w * s
-        left = x + w / 2 + side / 2
-        return pygame.Rect(int(left), int(y + w / 2 - side / 2), max(1, int(side * FIELD)), max(1, int(side)))
+        r = pygame.Rect(0, 0, max(1, round(w * s)), max(1, round(w * s)))
+        r.center = (round(x + w / 2), round(y + w / 2))
+        return r
+
+    def next_field(self, eid: int) -> pygame.Rect:
+        """Where a node's next field is right now, just right of its value box."""
+        box = self._value_box(eid)
+        return pygame.Rect(box.right, box.y, max(1, _field_w(box.w)), box.h)
 
     def arrow_start(self, end) -> tuple[float, float]:
         """The dot an arrow leaves from: the head box, or a node's next field."""
@@ -111,8 +116,8 @@ class LinkedListRenderer(Renderer):
         if self.allows("insert_head"):
             out.append((HEAD, self._head_x()))
         if self.allows("insert_after"):
-            w, layout = self.element_size(), self.layout()
-            out += [(i, layout[eid][0] + w * (1 + FIELD)) for i, eid in enumerate(self.element_ids())]
+            layout, unit = self.layout(), self._unit()
+            out += [(i, layout[eid][0] + unit) for i, eid in enumerate(self.element_ids())]
         return out
 
     def badge_center(self, key) -> tuple[float, float]:
@@ -155,9 +160,7 @@ class LinkedListRenderer(Renderer):
     def _arrow_end(self, end) -> tuple[float, float]:
         if end is None:
             return self.null_box().midleft
-        w = self.element_size()
-        x, y, s = self.pos[end]
-        return x + w / 2 - w * s / 2, y + w / 2
+        return self._value_box(end).midleft
 
     # ---- the cur marker -------------------------------------------------------
     def on_step(self, step):
@@ -226,13 +229,23 @@ class LinkedListRenderer(Renderer):
         if rect.w < 4:
             return
         radius = 10
-        field = pygame.Rect(rect.right - radius, rect.y, round(rect.w * FIELD) + radius, rect.h)
+        field = pygame.Rect(rect.right - radius, rect.y, _field_w(rect.w) + radius, rect.h)
         pygame.draw.rect(surf, mix(fill, theme.BG, 0.4), field,
                          border_top_right_radius=radius, border_bottom_right_radius=radius)
         pygame.draw.line(surf, mix(fill, theme.BG, 0.65), (rect.right, rect.y + 3), (rect.right, rect.bottom - 4), 2)
         dot = ((rect.right + field.right) // 2, rect.centery)
         pygame.draw.line(surf, ARROW, dot, (field.right, dot[1]), 2)
         pygame.draw.circle(surf, theme.TEXT, dot, max(2, rect.w // 16))
+
+
+def _field_w(box_w: float) -> int:
+    """A next field's width, for a value box `box_w` wide."""
+    return round(box_w * FIELD)
+
+
+def _node_w(box_w: float) -> float:
+    """A whole node's width (value box plus next field), for a value box `box_w` wide."""
+    return box_w * (1 + FIELD)
 
 
 def _arrow(surf, start, end, bow: float = 0.0) -> None:
