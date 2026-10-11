@@ -206,4 +206,4 @@ v1 ships, in order on the **Zone Map**: The Array Plains (done), The Linked Mars
 - The department syllabus is still outstanding. The recommended 18-week syllabus in the docs folder is the working assumption.
 - Grade Progress Reports on completion, not Stars. Stars reward efficiency in a no-fail game, and grading them would push students to look up answers.
 - The Appendix A example in the original plan was wrong (it treated 7 as having two children). The current design makes that class of error impossible, and a model test pins that specific case.
-- Content drafted earlier in this session for Zones 2 to 5 was never saved, because the write failed. Treat it as a draft to recreate and validate, not as existing files.
+- Draft Zone files for Zones 2 to 5 live in the `content-drafts` folder beside this spec. Every draft Puzzle's Reference Solution finishes, and every Disruption was checked against random play. Each Zone ticket moves its draft into the shipped content and runs the real content contract.

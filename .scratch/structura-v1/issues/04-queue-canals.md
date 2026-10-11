@@ -1,6 +1,6 @@
 # 04: The Queue Canals
 
-**What to build:** A playable Zone teaching queues. Students see a horizontal line with the front and back marked and an Output row. Enqueue slides the next Tray value in at the back, and Dequeue slides the front value out to the Output row. Puzzles deliberately contrast with The Stack Towers (same input, order kept). The Zone has a Lesson, Puzzles (launch the boats, who's first, same order out, canal log, keep two afloat) and the Lock Keeper Boss, whose Disruption sneaks an extra value into the back.
+**What to build:** A playable Zone teaching queues. Students see a horizontal line with the front and back marked and an Output row. Enqueue slides the next Tray value in at the back, and Dequeue slides the front value out to the Output row. Puzzles deliberately contrast with The Stack Towers (same input, order kept). The Zone has a Lesson, Puzzles (launch the boats, who's first, same order out, canal log, keep two afloat) and the Lock Keeper Boss, whose Disruption opens the gate early and sweeps the front value out. (An earlier draft enqueued an extra value at the back instead. That could make the Boss unwinnable, so the draft was changed. The random-play check from ticket 02 guards against this.)
 
 **Blocked by:** 03 (The Stack Towers, plus answer buttons for quiz Puzzles)
 
