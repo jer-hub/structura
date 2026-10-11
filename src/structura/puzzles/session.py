@@ -31,6 +31,9 @@ class _Snapshot:
     fired: frozenset
 
 
+DEAD_END = "Undo: this Puzzle can't be finished from here. Go back to before the Move that made it impossible."
+
+
 def stars_for(moves: int, glitches: int, hints_used: int, reference: int) -> int:
     efficiency = (moves + glitches) / max(reference, 1)
     if efficiency <= 1.0 and hints_used == 0:
@@ -74,6 +77,11 @@ class PuzzleSession:
         if self.pos >= len(self.plan):
             self.plan, self.pos = self.goal.plan(self.state), 0
         return self.plan[self.pos] if self.plan else None
+
+    @property
+    def dead_end(self) -> bool:
+        """True when no Reference Solution exists from here, so only Undo can help."""
+        return not self.done and self.expected() is None
 
     def stars(self) -> int:
         return stars_for(self.moves, self.glitches, self.hints_used, reference_count(self.puzzle))
@@ -154,7 +162,11 @@ class PuzzleSession:
         return True
 
     def hint(self) -> tuple[int, str, Move | None]:
-        """Reveal the next Hint tier. Returns (tier, text, move to highlight)."""
+        """Reveal the next Hint tier. Returns (tier, text, move to highlight).
+
+        In a dead end every tier would say the same thing, so the Hint is free."""
+        if self.dead_end:
+            return self.hint_tier, DEAD_END, None
         if self.hint_tier < 3:
             self.hint_tier += 1
             self.hints_used += 1

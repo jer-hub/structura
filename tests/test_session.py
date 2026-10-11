@@ -113,3 +113,39 @@ def test_stars_formula():
     assert stars_for(5, 0, 0, 4) == 2
     assert stars_for(4, 0, 1, 4) == 2
     assert stars_for(9, 0, 0, 4) == 1
+
+
+# ---- dead ends ------------------------------------------------------------------
+def marsh(**kw) -> Puzzle:
+    base = dict(type="repair", structure="linked_list", initial=[1, 7, 3], tray=[2],
+                ops=["insert_after", "delete"], goal={"kind": "target", "state": [1, 2, 3]},
+                hints=["Remove what doesn't belong.", "Next: {next}."])
+    base.update(kw)
+    return puzzle(**base)
+
+
+def test_deleting_a_value_the_tray_cannot_replace_is_a_dead_end():
+    s = PuzzleSession(marsh())
+    assert not s.dead_end
+    assert s.try_move(Move.of("delete", 0)).ok        # 1 is gone and the Tray holds only 2
+    assert s.dead_end and not s.done
+    assert s.expected() is None
+    s.undo()
+    assert not s.dead_end
+
+
+def test_finished_puzzle_is_not_a_dead_end():
+    s = PuzzleSession(marsh())
+    for m in reference_moves(s.puzzle):
+        s.try_move(m)
+    assert s.done and not s.dead_end
+
+
+def test_hint_in_a_dead_end_says_undo_instead_of_a_move_and_is_free():
+    s = PuzzleSession(marsh())
+    s.hint()
+    s.hint()
+    s.try_move(Move.of("delete", 0))
+    tier, text, move = s.hint()                       # would be the third tier
+    assert text.startswith("Undo") and move is None
+    assert tier == 2 and s.hints_used == 2

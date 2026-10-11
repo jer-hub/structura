@@ -137,3 +137,67 @@ def test_disruption_is_announced(app):
         play(app, move)
         announced.append(app.scene.message)
     assert any("Shuffler flips" in m for m in announced)
+
+
+# ---- The Linked Marshes ---------------------------------------------------
+def clear_zone(app, zone):
+    for p in zone.puzzles:
+        app.store.record(app.profile.id, p.id, 3, 1, 0, 0)
+
+
+def test_linked_marshes_play_through(app):
+    new_profile(app)
+    z1, z2 = app.zones[0], app.zones[1]
+    assert z2.name == "The Linked Marshes"
+    clear_zone(app, z1)
+    app.open_map()
+    click(app, "The Linked Marshes")
+    assert isinstance(app.scene, ZoneScene)
+
+    click(app, "Lesson")
+    while not any(b.label == "Finish Lesson" for b in app.scene.buttons):
+        click(app, "Next")
+        settle(app)
+    click(app, "Finish Lesson")
+
+    for puzzle in z2.puzzles:
+        click(app, puzzle.title)
+        scene = app.scene
+        assert isinstance(scene, PuzzleScene) and scene.session.puzzle.id == puzzle.id
+        for move in reference_moves(puzzle):
+            play(app, move)
+        assert scene.session.done, puzzle.id
+        click(app, "See Results")
+        assert app.scene.stars == 3, puzzle.id
+        click(app, "Back to Zone")
+
+    assert {p.id for p in z2.puzzles} <= set(app.store.results(app.profile.id))
+
+
+def test_delete_needs_exactly_one_selected_node(app):
+    new_profile(app)
+    z2 = app.zones[1]
+    app.open_puzzle(z2, next(p for p in z2.puzzles if p.id == "z2_p4"))     # Cut the Rot
+    assert not button(app, "Delete").enabled
+    click_at(app, target(app, "node", 2))
+    assert button(app, "Delete").enabled and app.scene.selected == [2]
+    click_at(app, target(app, "node", 3))
+    assert app.scene.selected == [3], "selecting another node moves the selection"
+    click_at(app, target(app, "node", 3))
+    assert not button(app, "Delete").enabled
+
+
+def test_dead_end_prompts_undo(app):
+    new_profile(app)
+    z2 = app.zones[1]
+    app.open_puzzle(z2, z2.puzzles[-1])                                     # The Marsh Hydra
+    scene = app.scene
+    play(app, Move.of("delete", 0))                                          # 1 can't come back
+    assert scene.session.dead_end
+    assert "Undo" in scene.message and "Hydra" in scene.message, "the Disruption is still announced"
+    click(app, "Hint")
+    click(app, "Hint")
+    click(app, "Hint")
+    assert scene.message.startswith("Undo") and scene.hint_move is None
+    click(app, "Undo")
+    assert not scene.session.dead_end

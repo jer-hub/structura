@@ -10,7 +10,7 @@ import pygame
 import pytest
 
 from clicks import PROMISED_TARGETS
-from structura.models import ArrayModel, Move
+from structura.models import ArrayModel, LinkedListModel, Move
 from structura.ui.renderers import RENDERERS, make_renderer
 
 pygame.init()
@@ -25,6 +25,8 @@ class Sample(NamedTuple):
 
 SAMPLES = {
     "array": Sample(lambda: ArrayModel([1, 2, 3, 4]), Move.of("insert", 1, 9), Move.of("delete", 1)),
+    "linked_list": Sample(lambda: LinkedListModel([1, 2, 3, 4]), Move.of("insert_after", 0, 9),
+                          Move.of("delete", 1)),
 }
 
 

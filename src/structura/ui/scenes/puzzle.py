@@ -4,7 +4,7 @@ from __future__ import annotations
 import pygame
 
 from ...models import Move
-from ...puzzles.session import PuzzleSession, reference_count
+from ...puzzles.session import DEAD_END, PuzzleSession, reference_count
 from .. import theme
 from ..anim import StepPlayer
 from ..app import SIZE, Scene
@@ -24,6 +24,7 @@ class PuzzleScene(Scene):
         self.zone, self.puzzle = zone, puzzle
         self.session = PuzzleSession(puzzle)
         self.renderer = make_renderer(puzzle.structure, VIZ)
+        self.renderer.ops = set(puzzle.ops)
         self.player = StepPlayer(app.profile.speed)
         self.code_panel = CodePanel(CODE, app.profile.language)
         self.code_panel.show(puzzle.code)
@@ -39,13 +40,16 @@ class PuzzleScene(Scene):
     # ---- state -> view ---------------------------------------------------
     def _sync(self):
         s = self.session
-        self.renderer.show_slots = "insert" in self.puzzle.ops and s.tray_next is not None and not s.done
+        self.renderer.show_slots = s.tray_next is not None and not s.done   # the renderer filters by ops
         self.renderer.sync(s.model)
         row = Row(30, SIZE[1] - 70)
         self.buttons = []
         if "swap" in self.puzzle.ops:
             self.buttons.append(row.add("Swap", self._swap, enabled=len(self.selected) == 2 and not s.done,
                                         accent=self.zone.color))
+        if "delete" in self.puzzle.ops:
+            self.buttons.append(row.add("Delete", self._delete, enabled=len(self.selected) == 1 and not s.done,
+                                        accent=theme.BAD))
         self.buttons += [
             row.add("Undo", self._undo, enabled=bool(s.history) and not s.done),
             row.add("Hint", self._hint, enabled=not s.done, accent=theme.ACTIVE),
@@ -67,7 +71,7 @@ class PuzzleScene(Scene):
         self.selected = []
         if not out.ok:
             self.glitch_flash = 0.6
-            cells = [a for a in move.args[:2] if isinstance(a, int)] if move.op in ("swap", "visit") else []
+            cells = [a for a in move.args[:2] if isinstance(a, int)] if move.op in ("swap", "visit", "delete") else []
             if cells:
                 self.renderer.shake(cells)
             else:
@@ -91,6 +95,8 @@ class PuzzleScene(Scene):
         if out.done:
             self._say(self.puzzle.outro or "Structure repaired!", theme.GOOD)
             self._celebrate()
+        elif self.session.dead_end:
+            self._say(f"{out.disruption} {DEAD_END}" if out.disruption else DEAD_END, theme.BAD)
 
     def _celebrate(self):
         self.renderer.celebrate()
@@ -101,6 +107,10 @@ class PuzzleScene(Scene):
     def _swap(self):
         if len(self.selected) == 2:
             self._attempt(Move.of("swap", *self.selected))
+
+    def _delete(self):
+        if len(self.selected) == 1:
+            self._attempt(Move.of("delete", self.selected[0]))
 
     def _undo(self):
         if self.session.undo():
@@ -124,20 +134,22 @@ class PuzzleScene(Scene):
             if not t.rect.collidepoint(event.pos):
                 continue
             if t.kind == "slot":
-                self._attempt(Move.of("insert", t.key, self.session.tray_next))
+                self._attempt(self.renderer.slot_move(t.key, self.session.tray_next))
             elif "visit" in self.puzzle.ops:
                 self._attempt(Move.of("visit", t.key))
-            elif "swap" in self.puzzle.ops:
+            elif "swap" in self.puzzle.ops or "delete" in self.puzzle.ops:
                 if t.key in self.selected:
                     self.selected.remove(t.key)
                 else:
-                    self.selected = (self.selected + [t.key])[-2:]
+                    keep = 2 if "swap" in self.puzzle.ops else 1
+                    self.selected = (self.selected + [t.key])[-keep:]
                 self._sync()
             return
 
     # ---- frame -------------------------------------------------------------
     def update(self, dt):
         self.player.update(dt)
+        self.renderer.on_step(self.player.current)
         self.renderer.update(dt)
         self.code_panel.update(dt)
         self.fx.update(dt)
@@ -165,10 +177,10 @@ class PuzzleScene(Scene):
         if m is not None:
             if m.op == "swap":
                 hinted = m.args
-            elif m.op == "visit":
+            elif m.op in ("visit", "delete"):
                 hinted = (m.args[0],)
-            elif m.op == "insert":
-                hint_slot = m.args[0]
+            else:
+                hint_slot = self.renderer.slot_for(m)
         self.renderer.draw(surf, self.player.highlights(), self.selected, hinted, hint_slot,
                            offset=self.board_shake.offset())
         step = self.player.current

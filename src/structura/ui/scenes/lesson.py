@@ -41,7 +41,7 @@ class LessonScene(Scene):
                 self.player.play(self.model.apply(move))
         self.renderer.sync(self.model)
         for line in beat.do:
-            if line.startswith("visit") and self.model.structure == "array":
+            if line.startswith("visit"):
                 self.fx.ripple(self.renderer.center_of(int(line.split()[1])), theme.ACTIVE, radius=70)
         last = self.index == len(self.lesson.beats) - 1
         bar = SIZE[1] - 72
@@ -59,6 +59,7 @@ class LessonScene(Scene):
 
     def update(self, dt):
         self.player.update(dt)
+        self.renderer.on_step(self.player.current)
         self.renderer.update(dt)
         self.code_panel.update(dt)
         self.fx.update(dt)

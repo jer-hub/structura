@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pygame
 
+from ...models import Move
 from .. import theme
 from ..fx import mix
 from .base import Renderer, Target
@@ -33,6 +34,8 @@ class ArrayRenderer(Renderer):
         return {eid: (x0 + i * (w + GAP), y) for i, eid in enumerate(ids)}
 
     def slot_targets(self):
+        if not self.allows("insert"):
+            return []
         layout, ids, w = self.layout(), self.element_ids(), self.element_size()
         if ids:
             xs = [layout[eid][0] - GAP for eid in ids] + [layout[ids[-1]][0] + w]
@@ -41,6 +44,12 @@ class ArrayRenderer(Renderer):
             xs, y = [self.rect.centerx - GAP / 2], self.rect.centery - 30
         return [Target("slot", i, pygame.Rect(int(x + 2), int(y - 12), GAP - 4, w + 24))
                 for i, x in enumerate(xs)]
+
+    def slot_move(self, key, value):
+        return Move.of("insert", key, value)
+
+    def slot_for(self, move):
+        return move.args[0] if move.op == "insert" else None
 
     # ---- motion -------------------------------------------------------------
     def arcs(self, moving):

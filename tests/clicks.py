@@ -92,3 +92,28 @@ def array_targets(model, show_slots):
     nodes = {("node", i) for i in range(n)}
     slots = {("slot", i) for i in range(n + 1)} if show_slots else set()
     return nodes | slots
+
+
+# ---- linked list -----------------------------------------------------------------
+@player("linked_list")
+def play_linked_list(app, move: Move):
+    if move.op == "visit":
+        click_at(app, target(app, "node", move.args[0]))
+    elif move.op == "insert_head":
+        click_at(app, target(app, "slot", "head"))
+    elif move.op == "insert_after":
+        click_at(app, target(app, "slot", move.args[0]))
+    elif move.op == "delete":
+        click_at(app, target(app, "node", move.args[0]))
+        click(app, "Delete")
+    else:
+        raise AssertionError(move)
+
+
+@promised_targets("linked_list")
+def linked_list_targets(model, show_slots):
+    """Nodes keyed by position; slots keyed "head" and i for "after position i"."""
+    n = len(model.values())
+    nodes = {("node", i) for i in range(n)}
+    slots = {("slot", "head")} | {("slot", i) for i in range(n)} if show_slots else set()
+    return nodes | slots

@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 import pygame
 
+from ...models import Move, Step
 from .. import theme
 from ..fx import Shake, Tween, ease_in_out_sine, ease_out_back, lerp, mix
 
@@ -60,6 +61,7 @@ class Renderer:
         self.cheer: dict[int, Tween] = {}
         self.clock = 0.0
         self.show_slots = False
+        self.ops: set[str] | None = None             # the Puzzle's ops; None allows all (Lessons)
 
     # ---- what subclasses describe -------------------------------------------
     def elements(self) -> list[tuple[int, object]]:
@@ -77,6 +79,20 @@ class Renderer:
     def slot_targets(self) -> list[Target]:
         """Slot targets, asked for only while `show_slots` is on."""
         return []
+
+    def slot_move(self, key, value) -> Move:
+        """The Move made by clicking slot `key` with `value` from the Tray."""
+        raise NotImplementedError
+
+    def slot_for(self, move: Move):
+        """The slot whose click makes `move`, or None if it isn't made by a slot."""
+        return None
+
+    def allows(self, op: str) -> bool:
+        return self.ops is None or op in self.ops
+
+    def on_step(self, step: Step | None) -> None:
+        """Called every frame with the Step being played, for markers that follow it."""
 
     def arcs(self, moving: dict[int, tuple]) -> dict[int, float]:
         """How far each moving element bows off a straight path; straight by default."""

@@ -6,10 +6,11 @@ import pygame
 
 from .array import ArrayRenderer
 from .base import Renderer, Target
+from .linked_list import LinkedListRenderer
 
 __all__ = ["RENDERERS", "Renderer", "Target", "make_renderer"]
 
-RENDERERS: dict[str, type[Renderer]] = {"array": ArrayRenderer}
+RENDERERS: dict[str, type[Renderer]] = {"array": ArrayRenderer, "linked_list": LinkedListRenderer}
 
 
 def make_renderer(structure: str, rect: pygame.Rect) -> Renderer:
