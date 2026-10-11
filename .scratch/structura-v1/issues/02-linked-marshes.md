@@ -11,6 +11,7 @@
 - [ ] Insert and delete animate arrow re-routing; traversal and walk Steps highlight the current node
 - [ ] Delete button enabled only with exactly one node selected
 - [ ] Zone file for The Linked Marshes (unlocked after The Array Plains) passes the content contract: every Reference Solution finishes, the Hydra's Disruption fires, Hints pass lint, snippets exist in Python and Java
-- [ ] Content contract gains a random-play check for every Puzzle with Disruptions: across many seeded random sequences of legal Moves, after each Disruption fires, the Puzzle still has a Reference Solution (no Disruption can make a Puzzle unwinnable, spec story 35)
+- [ ] Content contract gains a random-play check for every Puzzle with Disruptions: across many seeded random sequences of legal Moves, whenever the Puzzle was winnable right after the player's Move, it is still winnable after the Disruption fires (no Disruption can make a Puzzle unwinnable, spec story 35). Measure between the Move and the Disruption, not before the Move, or the player's own dead ends get blamed on the Disruption
+- [ ] Dead-end prompt: when no Reference Solution exists from the current state (e.g. the player deleted a value the Tray can't replace; random play hits this in about two thirds of Marsh Hydra runs), the game says the Puzzle can no longer be finished and suggests Undo, and the third Hint tier says "Undo" instead of offering a Move. Session-level test plus a UI test
 - [ ] Play-through test: open the Zone, finish the Lesson, play every Puzzle via the click contract to 3 Stars, results saved
 - [ ] Launched and playable by hand
