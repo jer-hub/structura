@@ -23,4 +23,4 @@ Implemented. Waiting on the one human step: launch the game and play The Stack T
 - Fixed in passing: models change in place, so the values of removed elements are now remembered from the last sync. Ghosts and popped blocks had been drawn without their values.
 - Buttons: `BUTTON_OPS` in the Puzzle scene (push/pop/enqueue/dequeue), shown only for the Puzzle's ops. A remove op is enabled only when the model allows it.
 - Answer UI: any goal with `options` gets one button per option inside the board, and `Goal.question()` lines are shown in place of the board. Fits 4 options (2×2). Ticket 05 still needs to add the Big-O table for Select Puzzles.
-- Open content questions for faculty: the briefs of z3_p2 and z3_p4 restate their scripts, which `goal.script` already holds (same fact in two places, see ADR 0001); "Output" is used as a domain term but has no CONTEXT.md entry.
+- Open content question for faculty: the briefs of z3_p2 and z3_p4 restate their scripts, which `goal.script` already holds (same fact in two places, see ADR 0001). "Output" is now in CONTEXT.md.

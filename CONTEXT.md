@@ -52,6 +52,10 @@ _Avoid_: Rating, grade
 The values a Puzzle gives the player to place, used strictly in order.
 _Avoid_: Inventory, supply, hand
 
+**Output**:
+The values removed from a stack or queue, read first to last in the order they were removed. Values deleted from other structures are destroyed, not output. A Puzzle can set its goal on the Output.
+_Avoid_: Result, popped values, out, "top" of the Output
+
 **Disruption**:
 A scripted change the game makes to a Boss Puzzle's structure partway through. The player must adapt but cannot fail.
 _Avoid_: Attack, random event

@@ -96,6 +96,6 @@ tray = [1, 2, 3, 4, 5]
 ops = ["push", "pop"]
 goal = { kind = "target", output = [3, 2, 4, 5, 1] }
 code = "stack"
-hints = ["The first value out is the one at the top of the Output order. What needs to be under it?", "A value that comes out last can sit at the bottom the whole time."]
+hints = ["Work backwards: the first value in the Output must be on top of the tower when you first pop. What has to be under it?", "A value that comes out last can sit at the bottom the whole time."]
 intro = "The tower hums. Every block you place echoes back in a different order..."
 outro = "The echoes fall silent. You've mastered LIFO."
