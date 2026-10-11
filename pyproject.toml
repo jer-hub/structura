@@ -1,0 +1,26 @@
+[project]
+name = "structura"
+version = "0.1.0"
+description = "A teaching game for data structures and algorithms, built for the BSIT program."
+requires-python = ">=3.11"
+dependencies = ["pygame-ce>=2.5"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+structura = "structura.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+structura = ["codemirror/snippets/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
