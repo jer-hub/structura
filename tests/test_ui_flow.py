@@ -9,6 +9,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 import pytest
 
+from clicks import button, click, click_at, play, settle, target
 from structura.models import Move
 from structura.persistence import report
 from structura.persistence.store import Store
@@ -23,58 +24,10 @@ from structura.ui.scenes.zone import ZoneScene
 from structura.ui.scenes.zone_map import ZoneMapScene
 
 
-# ---- helpers that act like a player --------------------------------------
-def click_at(app, pos):
-    app.handle(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos))
-    app.handle(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=pos))
-    app.update(0.01)
-    app.draw()
-
-
-def button(app, label):
-    matches = [b for b in app.scene.buttons if b.label == label]
-    assert matches, f"no button {label!r} on {type(app.scene).__name__}: {[b.label for b in app.scene.buttons]}"
-    return matches[0]
-
-
-def click(app, label):
-    b = button(app, label)
-    assert b.enabled, f"button {label!r} is disabled"
-    click_at(app, b.rect.center)
-
-
 def type_into(app, field_label, text):
     field = next(f for f in app.scene.fields if f.label == field_label)
     click_at(app, field.rect.center)
     app.handle(pygame.event.Event(pygame.TEXTINPUT, text=text))
-
-
-def settle(app):
-    for _ in range(40):
-        app.update(0.25)
-    app.draw()
-
-
-def target(app, kind, key):
-    for t in app.scene.renderer.targets():
-        if t.kind == kind and t.key == key:
-            return t.rect.center
-    raise AssertionError(f"no {kind} target {key!r}")
-
-
-def play(app, move: Move):
-    """Perform one Move the way a player would."""
-    if move.op == "visit":
-        click_at(app, target(app, "node", move.args[0]))
-    elif move.op == "insert":
-        click_at(app, target(app, "slot", move.args[0]))
-    elif move.op == "swap":
-        click_at(app, target(app, "node", move.args[0]))
-        click_at(app, target(app, "node", move.args[1]))
-        click(app, "Swap")
-    else:
-        raise AssertionError(move)
-    settle(app)
 
 
 # ---- fixtures -------------------------------------------------------------

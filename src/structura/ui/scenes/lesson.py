@@ -9,7 +9,7 @@ from ..anim import StepPlayer
 from ..app import SIZE, Scene
 from ..code_panel import CodePanel
 from ..fx import Effects
-from ..renderers.base import make_renderer
+from ..renderers import make_renderer
 from ..widgets import Button
 
 VIZ = pygame.Rect(30, 120, 820, 400)

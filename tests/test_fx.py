@@ -67,7 +67,7 @@ def test_ripple_grows_then_ends():
     assert r.done
 
 
-# ---- array renderer -----------------------------------------------------------
+# ---- array-specific motion (shared effects: test_renderer_contract.py) -------
 def settled(r):
     run(r, 2)
     return {eid: tuple(r.pos[eid][:2]) for eid in r.model.ids()}
@@ -90,56 +90,17 @@ def test_swap_travels_on_opposite_arcs():
     assert after[a] == pytest.approx(rest[b], abs=0.5) and after[b] == pytest.approx(rest[a], abs=0.5)
 
 
-def test_deleted_cell_fades_out_as_ghost():
-    m = ArrayModel([1, 2, 3])
-    r = ArrayRenderer(VIZ)
-    r.sync(m)
-    settled(r)
-    gone = m.ids()[1]
-    m.apply(Move.of("delete", 1))
-    r.sync(m)
-    assert gone in r.ghosts
-    run(r, 1)
-    assert gone not in r.ghosts
-
-
-def test_inserted_cell_pops_in():
-    m = ArrayModel([1, 3])
-    r = ArrayRenderer(VIZ)
-    r.sync(m)
-    settled(r)
-    m.apply(Move.of("insert", 1, 2))
-    r.sync(m)
-    new = m.ids()[1]
-    assert r.scale(new) < 0.5
-    run(r, 1)
-    assert r.scale(new) == pytest.approx(1, abs=0.02)
-
-
-def test_glitch_shake_moves_only_named_cells_and_settles():
+def test_shift_slides_straight():
     m = ArrayModel([1, 2, 3])
     r = ArrayRenderer(VIZ)
     r.sync(m)
     rest = settled(r)
-    r.shake([0])
-    r.update(0.05)
-    ids = m.ids()
-    assert r.draw_offset(ids[0]) != (0, 0)
-    assert r.draw_offset(ids[1]) == (0, 0)
-    run(r, 1)
-    assert r.draw_offset(ids[0]) == (0, 0)
-
-
-def test_celebrate_turns_cells_green_left_to_right():
-    m = ArrayModel([1, 2, 3, 4])
-    r = ArrayRenderer(VIZ)
+    m.apply(Move.of("insert", 0, 0))
     r.sync(m)
-    r.celebrate()
-    r.update(0.15)
-    first, last = m.ids()[0], m.ids()[-1]
-    assert r.celebration(first) > r.celebration(last)
-    run(r, 2)
-    assert r.celebration(last) == pytest.approx(1)
+    for _ in range(20):
+        r.update(1 / 60)
+        assert all(r.pos[eid][1] == pytest.approx(rest[eid][1]) for eid in rest), "a shift never leaves the row"
+    assert all(r.pos[eid][0] > rest[eid][0] for eid in rest)
 
 
 # ---- scenes -------------------------------------------------------------------

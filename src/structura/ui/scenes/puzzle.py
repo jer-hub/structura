@@ -10,7 +10,7 @@ from ..anim import StepPlayer
 from ..app import SIZE, Scene
 from ..code_panel import CodePanel
 from ..fx import Effects, Shake
-from ..renderers.base import make_renderer
+from ..renderers import make_renderer
 from ..widgets import Row
 
 VIZ = pygame.Rect(30, 110, 820, 400)
