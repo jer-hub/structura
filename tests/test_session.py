@@ -149,3 +149,18 @@ def test_hint_in_a_dead_end_says_undo_instead_of_a_move_and_is_free():
     tier, text, move = s.hint()                       # would be the third tier
     assert text.startswith("Undo") and move is None
     assert tier == 2 and s.hints_used == 2
+
+
+# ---- quiz answers ------------------------------------------------------------------
+def test_wrong_answer_is_a_glitch_then_right_answer_finishes():
+    p = puzzle(type="trace", structure="stack", initial=[], ops=[],
+               goal={"kind": "quiz", "script": ["push 4", "push 9", "pop", "push 2"], "ask": "top"})
+    s = PuzzleSession(p)
+    options, right = s.goal.options, s.goal.correct
+    assert options[right] == "2" and len(options) >= 2
+    wrong = next(i for i in range(len(options)) if i != right)
+    out = s.try_move(Move.of("answer", wrong))
+    assert not out.ok and "LIFO" in out.glitch and not s.done
+    out = s.try_move(Move.of("answer", right))
+    assert out.ok and out.done
+    assert s.glitches == 1 and s.moves == 1 and s.stars() == 1      # (1 + 1) / 1 = 2.0x

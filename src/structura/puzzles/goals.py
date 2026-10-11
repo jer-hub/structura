@@ -54,6 +54,10 @@ class Goal:
         """One-line objective for the HUD."""
         return self.puzzle.brief
 
+    def question(self) -> list[str]:
+        """Lines to show in place of the board when the Puzzle is answered, not played."""
+        return []
+
 
 # ---------------------------------------------------------------------------
 # Search solver for "reach this state" goals
@@ -346,6 +350,9 @@ class QuizGoal(Goal):
 
     def done(self, st):
         return st.answered
+
+    def question(self):
+        return list(self.script)
 
     def wrong_answer(self, index):
         return {

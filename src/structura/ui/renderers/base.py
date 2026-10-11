@@ -4,7 +4,8 @@ A renderer draws one data structure model. Subclasses describe only their
 layout (where each element sits, what can be clicked) and any motion peculiar
 to their structure; the base supplies the rest:
 
-  * new elements drop in with a little overshoot, removed ones shrink and fade;
+  * new elements grow in with a little overshoot, removed ones shrink and fade
+    (subclasses may override `enter` and `leave` to move them somewhere instead);
   * elements that change place travel there (straight unless the subclass arcs them);
   * shake, the left-to-right celebration wave, highlights, selection and hints.
 
@@ -61,6 +62,7 @@ class Renderer:
         self.cheer: dict[int, Tween] = {}
         self.clock = 0.0
         self.show_slots = False
+        self.last_values: dict[int, object] = {}     # as of the last sync; models change in place
         self.ops: set[str] | None = None             # the Puzzle's ops; None allows all (Lessons)
 
     # ---- what subclasses describe -------------------------------------------
@@ -101,6 +103,15 @@ class Renderer:
     def draw_under(self, surf, hint_slot, pulse: float, offset) -> None:
         """Structure furniture drawn beneath the elements (slots, labels, arrows)."""
 
+    def enter(self, eid: int, target: tuple[float, float]) -> None:
+        """Animate a new element in. By default it grows in place."""
+        self.pos[eid] = [target[0], target[1], 0.0]
+        self.spawns[eid] = Tween(0.4)
+
+    def leave(self, eid: int, x: float, y: float, value) -> None:
+        """Animate a removed element out. By default it shrinks and fades as a ghost."""
+        self.ghosts[eid] = (x, y, value, Tween(0.35))
+
     # ---- keys -----------------------------------------------------------------
     def element_ids(self) -> list[int]:
         return [eid for eid, _ in self.elements()]
@@ -114,14 +125,12 @@ class Renderer:
 
     # ---- syncing with the model -------------------------------------------------
     def sync(self, model) -> None:
-        old_values = dict(self.elements()) if self.model is not None else {}
         self.model = model
         layout = self.layout()
         moving = {}
         for eid, target in layout.items():
             if eid not in self.pos:
-                self.pos[eid] = [target[0], target[1], 0.0]
-                self.spawns[eid] = Tween(0.4)
+                self.enter(eid, target)
                 continue
             current = (self.pos[eid][0], self.pos[eid][1])
             heading = self.motions[eid].end if eid in self.motions else current
@@ -133,9 +142,10 @@ class Renderer:
         for eid in list(self.pos):
             if eid not in layout:
                 x, y, _ = self.pos.pop(eid)
-                self.ghosts[eid] = (x, y, old_values.get(eid, ""), Tween(0.35))
                 self.motions.pop(eid, None)
                 self.spawns.pop(eid, None)
+                self.leave(eid, x, y, self.last_values.get(eid, ""))
+        self.last_values = dict(self.elements())
 
     def update(self, dt: float) -> None:
         if self.model is None:
@@ -176,6 +186,14 @@ class Renderer:
 
     def celebration(self, eid: int) -> float:
         return self.cheer[eid].progress if eid in self.cheer else 0.0
+
+    def at_rest(self, eid: int) -> bool:
+        """In place, full size and not moving."""
+        return eid not in self.motions and eid not in self.spawns and self.pos[eid][2] == 1.0
+
+    def leaving(self) -> set[int]:
+        """Ids of removed elements still animating out."""
+        return set(self.ghosts)
 
     def scale(self, eid: int) -> float:
         return self.pos[eid][2]

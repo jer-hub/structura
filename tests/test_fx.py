@@ -90,6 +90,18 @@ def test_swap_travels_on_opposite_arcs():
     assert after[a] == pytest.approx(rest[b], abs=0.5) and after[b] == pytest.approx(rest[a], abs=0.5)
 
 
+def test_inserted_cell_pops_in():
+    m = ArrayModel([1, 3])
+    r = ArrayRenderer(VIZ)
+    r.sync(m)
+    settled(r)
+    m.apply(Move.of("insert", 1, 2))
+    r.sync(m)
+    new = m.ids()[1]
+    assert r.scale(new) < 0.5, "it grows in place rather than flying in"
+    assert tuple(r.pos[new][:2]) == r.layout()[new]
+
+
 def test_shift_slides_straight():
     m = ArrayModel([1, 2, 3])
     r = ArrayRenderer(VIZ)

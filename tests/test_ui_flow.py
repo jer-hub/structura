@@ -9,7 +9,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 import pytest
 
-from clicks import button, click, click_at, play, settle, target
+from clicks import button, click, click_at, labels, play, settle, target
 from structura.models import Move
 from structura.persistence import report
 from structura.persistence.store import Store
@@ -201,3 +201,66 @@ def test_dead_end_prompts_undo(app):
     assert scene.message.startswith("Undo") and scene.hint_move is None
     click(app, "Undo")
     assert not scene.session.dead_end
+
+
+# ---- The Stack Towers -------------------------------------------------------
+def test_stack_towers_play_through(app):
+    new_profile(app)
+    z1, z2, z3 = app.zones[0], app.zones[1], app.zones[2]
+    assert z3.name == "The Stack Towers"
+    clear_zone(app, z1)
+    app.open_map()
+    assert not button(app, "The Stack Towers").enabled, "locked until The Linked Marshes is cleared"
+    clear_zone(app, z2)
+    app.open_map()
+    click(app, "The Stack Towers")
+
+    click(app, "Lesson")
+    while not any(b.label == "Finish Lesson" for b in app.scene.buttons):
+        click(app, "Next")
+        settle(app)
+    click(app, "Finish Lesson")
+
+    quizzes = 0
+    for puzzle in z3.puzzles:
+        click(app, puzzle.title)
+        scene = app.scene
+        quizzes += scene.session.goal.options is not None
+        for move in reference_moves(puzzle):
+            play(app, move)
+        assert scene.session.done, puzzle.id
+        click(app, "See Results")
+        assert app.scene.stars == 3, puzzle.id
+        click(app, "Back to Zone")
+    assert quizzes >= 1
+    assert {p.id for p in z3.puzzles} <= set(app.store.results(app.profile.id))
+
+
+def test_push_and_pop_buttons_follow_the_ops(app):
+    new_profile(app)
+    z3 = app.zones[2]
+    by_id = {p.id: p for p in z3.puzzles}
+    app.open_puzzle(z3, by_id["z3_p1"])                # Stack the Blocks: push only
+    assert "Push" in labels(app) and "Pop" not in labels(app)
+
+    app.open_puzzle(z3, by_id["z3_p3"])                # Mirror Spell: push and pop
+    assert button(app, "Push").enabled and not button(app, "Pop").enabled, "nothing to pop yet"
+    click(app, "Push")
+    assert button(app, "Pop").enabled
+    assert "Swap" not in labels(app) and "Delete" not in labels(app)
+
+
+def test_quiz_wrong_then_right_answer(app):
+    new_profile(app)
+    z3 = app.zones[2]
+    quiz = next(p for p in z3.puzzles if p.id == "z3_p2")
+    app.open_puzzle(z3, quiz)
+    scene = app.scene
+    options, right = scene.session.goal.options, scene.session.goal.correct
+    assert all(o in labels(app) for o in options)
+    assert "Push" not in labels(app) and "Pop" not in labels(app)
+    wrong = next(o for i, o in enumerate(options) if i != right)
+    click(app, wrong)
+    assert scene.session.glitches == 1 and "LIFO" in scene.message and not scene.session.done
+    click(app, options[right])
+    assert scene.session.done

@@ -16,6 +16,8 @@ from ..widgets import Row
 VIZ = pygame.Rect(30, 110, 820, 400)
 CODE = pygame.Rect(870, 110, 380, 400)
 STAGE = {"guided": "Guided", "challenge": "Challenge", "boss": "BOSS"}
+# Ops made with a button rather than on the board, and whether they take the next Tray value.
+BUTTON_OPS = {"push": True, "pop": False, "enqueue": True, "dequeue": False}
 
 
 class PuzzleScene(Scene):
@@ -35,6 +37,7 @@ class PuzzleScene(Scene):
         self.board_shake = Shake()
         self.message = puzzle.intro or puzzle.brief
         self.message_colour = theme.TEXT
+        self.answering = self.session.goal.options is not None    # quiz and select Puzzles
         self._sync()
 
     # ---- state -> view ---------------------------------------------------
@@ -50,6 +53,14 @@ class PuzzleScene(Scene):
         if "delete" in self.puzzle.ops:
             self.buttons.append(row.add("Delete", self._delete, enabled=len(self.selected) == 1 and not s.done,
                                         accent=theme.BAD))
+        for op, takes_tray in BUTTON_OPS.items():
+            if op in self.puzzle.ops:
+                move = Move.of(op, s.tray_next) if takes_tray else Move.of(op)
+                ready = s.tray_next is not None if takes_tray else not s.model.why_illegal(move)
+                self.buttons.append(row.add(op.capitalize(), lambda m=move: self._attempt(m),
+                                            enabled=ready and not s.done, accent=self.zone.color))
+        if self.answering:
+            self.buttons += self._answer_buttons()
         self.buttons += [
             row.add("Undo", self._undo, enabled=bool(s.history) and not s.done),
             row.add("Hint", self._hint, enabled=not s.done, accent=theme.ACTIVE),
@@ -61,6 +72,19 @@ class PuzzleScene(Scene):
         else:
             right.x = SIZE[0] - 200
             self.buttons.append(right.add("Leave Puzzle", lambda: self.app.open_zone(self.zone), width=170))
+
+    def _answer_buttons(self):
+        """One button per option, inside the board under the script."""
+        s, goal = self.session, self.session.goal
+        rows = [Row(VIZ.x + 30, VIZ.bottom - 130), Row(VIZ.x + 30, VIZ.bottom - 74)]
+        out = []
+        for i, option in enumerate(goal.options):
+            row = rows[0] if i < 2 else rows[1]
+            hinted = self.hint_move == Move.of("answer", i)
+            out.append(row.add(option, lambda i=i: self._attempt(Move.of("answer", i)), width=360,
+                               enabled=not s.done, selected=s.done and i == goal.correct,
+                               accent=theme.ACTIVE if hinted else (theme.GOOD if s.done else self.zone.color)))
+        return out
 
     def _say(self, text, colour=theme.TEXT):
         self.message, self.message_colour = text, colour
@@ -122,6 +146,7 @@ class PuzzleScene(Scene):
         tier, text, move = self.session.hint()
         self.hint_move = move
         self._say(text, theme.ACTIVE)
+        self._sync()
 
     def _results(self):
         from .results import ResultsScene
@@ -156,6 +181,18 @@ class PuzzleScene(Scene):
         self.board_shake.update(dt)
         self.glitch_flash = max(0.0, self.glitch_flash - dt)
 
+    def _draw_question(self, surf):
+        """Quiz Puzzles: the operation script, worked in the player's head, not on the board."""
+        script = self.session.goal.question()
+        if not script:
+            return
+        ox, oy = self.board_shake.offset()
+        theme.draw_text(surf, "Operations", (VIZ.x + 30 + ox, VIZ.y + 24 + oy), 18, theme.MUTED)
+        for k, line in enumerate(script):
+            col, rowi = divmod(k, 4)
+            theme.draw_text(surf, f"{k + 1}.  {line}", (VIZ.x + 40 + col * 260 + ox, VIZ.y + 56 + rowi * 34 + oy),
+                            24, theme.TEXT)
+
     def draw(self, surf):
         s, p = self.session, self.puzzle
         theme.draw_text(surf, f"{self.zone.name}  ·  {STAGE[p.stage]}", (30, 14), 17, self.zone.color)
@@ -181,8 +218,11 @@ class PuzzleScene(Scene):
                 hinted = (m.args[0],)
             else:
                 hint_slot = self.renderer.slot_for(m)
-        self.renderer.draw(surf, self.player.highlights(), self.selected, hinted, hint_slot,
-                           offset=self.board_shake.offset())
+        if self.answering:
+            self._draw_question(surf)
+        else:
+            self.renderer.draw(surf, self.player.highlights(), self.selected, hinted, hint_slot,
+                               offset=self.board_shake.offset())
         step = self.player.current
         self.code_panel.draw(surf, step.kind if step else None)
 

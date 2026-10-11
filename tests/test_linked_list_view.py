@@ -63,6 +63,14 @@ def test_insert_head_moves_the_head_pointer():
     assert r.arrows()[:2] == [("head", r.eid_of(0), False), (r.eid_of(0), a, False)]
 
 
+def test_new_node_grows_in_place():
+    m, r = fresh()
+    m.apply(Move.of("insert_after", 0, 9))
+    r.sync(m)
+    new = r.eid_of(1)
+    assert r.scale(new) < 0.5 and tuple(r.pos[new][:2]) == r.layout()[new]
+
+
 def test_empty_list_head_points_at_null():
     _, r = fresh(())
     assert r.arrows() == [("head", None, False)]

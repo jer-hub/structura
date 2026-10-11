@@ -10,7 +10,7 @@ import pygame
 import pytest
 
 from clicks import PROMISED_TARGETS
-from structura.models import ArrayModel, LinkedListModel, Move
+from structura.models import ArrayModel, LinkedListModel, Move, StackModel
 from structura.ui.renderers import RENDERERS, make_renderer
 
 pygame.init()
@@ -20,13 +20,14 @@ VIZ = pygame.Rect(0, 0, 800, 400)
 class Sample(NamedTuple):
     model: Callable          # builds a model with at least 3 elements
     add: Move                # adds one element
-    remove: Move             # removes the element with key 1
+    remove: Move             # removes one element
 
 
 SAMPLES = {
     "array": Sample(lambda: ArrayModel([1, 2, 3, 4]), Move.of("insert", 1, 9), Move.of("delete", 1)),
     "linked_list": Sample(lambda: LinkedListModel([1, 2, 3, 4]), Move.of("insert_after", 0, 9),
                           Move.of("delete", 1)),
+    "stack": Sample(lambda: StackModel([1, 2, 3, 4]), Move.of("push", 9), Move.of("pop")),
 }
 
 
@@ -57,25 +58,26 @@ def structure(request):
     return request.param
 
 
-def test_new_element_pops_in(structure):
+def test_new_element_animates_in_then_rests(structure):
     model, r = fresh(structure)
     before = set(r.element_ids())
     model.apply(SAMPLES[structure].add)
     r.sync(model)
     (new,) = set(r.element_ids()) - before
-    assert r.scale(new) < 0.5
+    assert not r.at_rest(new)
     run(r, 1)
-    assert r.scale(new) == pytest.approx(1, abs=0.02)
+    assert r.at_rest(new) and r.scale(new) == pytest.approx(1, abs=0.02)
 
 
-def test_removed_element_fades_out_as_ghost(structure):
+def test_removed_element_animates_out(structure):
     model, r = fresh(structure)
-    gone = r.eid_of(1)
+    before = set(r.element_ids())
     model.apply(SAMPLES[structure].remove)
     r.sync(model)
-    assert gone in r.ghosts
+    (gone,) = before - set(r.element_ids())
+    assert gone in r.leaving()
     run(r, 1)
-    assert gone not in r.ghosts
+    assert gone not in r.leaving()
 
 
 def test_shake_moves_only_named_elements_and_settles(structure):
