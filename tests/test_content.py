@@ -95,3 +95,10 @@ def test_lesson_scripts_run(zone):
         model.run(beat.do)
         if beat.code:
             assert library.load(beat.code, "java") is not None
+
+
+def test_queue_canals_follow_the_stack_towers():
+    z4 = next(z for z in ZONES if z.id == "z4")
+    assert z4.name == "The Queue Canals" and z4.structure == "queue" and z4.requires == ["z3"]
+    assert z4.puzzles[-1].stage == "boss" and z4.puzzles[-1].disruptions
+    assert any(p.goal["kind"] == "quiz" for p in z4.puzzles)

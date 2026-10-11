@@ -41,7 +41,7 @@ The part a Puzzle plays in its Zone: Guided, Challenge or Boss.
 _Avoid_: I Do / We Do / You Do, phase, step
 
 **Move**:
-One graded player action: a change to the structure (insert, delete, swap, rotate, push, pop), visiting a node in a Trace, or choosing an answer. Selecting a node before acting on it is not a Move, and undoing does not remove a Move from the count.
+One graded player action: a change to the structure (insert, delete, swap, rotate, push, pop, enqueue, dequeue), visiting a node in a Trace, or choosing an answer. Selecting a node before acting on it is not a Move, and undoing does not remove a Move from the count.
 _Avoid_: Step, action, turn
 
 **Star**:

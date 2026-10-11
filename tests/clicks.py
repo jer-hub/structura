@@ -137,3 +137,15 @@ def play_stack(app, move: Move):
 @promised_targets("stack")
 def stack_targets(model, show_slots):
     return set()                                  # Moves come from the Push and Pop buttons
+
+
+# ---- queue -----------------------------------------------------------------------
+@player("queue")
+def play_queue(app, move: Move):
+    assert move.op in ("enqueue", "dequeue"), move
+    click(app, move.op.capitalize())
+
+
+@promised_targets("queue")
+def queue_targets(model, show_slots):
+    return set()                                  # Moves come from the Enqueue and Dequeue buttons

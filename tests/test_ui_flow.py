@@ -264,3 +264,78 @@ def test_quiz_wrong_then_right_answer(app):
     assert scene.session.glitches == 1 and "LIFO" in scene.message and not scene.session.done
     click(app, options[right])
     assert scene.session.done
+
+
+# ---- The Queue Canals -------------------------------------------------------
+def test_queue_canals_play_through(app):
+    new_profile(app)
+    z1, z2, z3, z4 = app.zones[:4]
+    assert z4.name == "The Queue Canals"
+    for z in (z1, z2):
+        clear_zone(app, z)
+    app.open_map()
+    assert not button(app, "The Queue Canals").enabled, "locked until The Stack Towers is cleared"
+    clear_zone(app, z3)
+    app.open_map()
+    click(app, "The Queue Canals")
+
+    click(app, "Lesson")
+    while not any(b.label == "Finish Lesson" for b in app.scene.buttons):
+        click(app, "Next")
+        settle(app)
+    click(app, "Finish Lesson")
+
+    quizzes = 0
+    for puzzle in z4.puzzles:
+        click(app, puzzle.title)
+        scene = app.scene
+        quizzes += scene.session.goal.options is not None
+        for move in reference_moves(puzzle):
+            play(app, move)
+        assert scene.session.done, puzzle.id
+        click(app, "See Results")
+        assert app.scene.stars == 3, puzzle.id
+        click(app, "Back to Zone")
+    assert quizzes >= 1
+    assert {p.id for p in z4.puzzles} <= set(app.store.results(app.profile.id))
+
+
+def test_enqueue_and_dequeue_buttons_follow_the_ops(app):
+    new_profile(app)
+    z4 = app.zones[3]
+    by_id = {p.id: p for p in z4.puzzles}
+    app.open_puzzle(z4, by_id["z4_p1"])                # Launch the Boats: enqueue only
+    assert "Enqueue" in labels(app) and "Dequeue" not in labels(app)
+
+    app.open_puzzle(z4, by_id["z4_p3"])                # Same Order Out: enqueue and dequeue
+    assert button(app, "Enqueue").enabled and not button(app, "Dequeue").enabled, "nothing to dequeue yet"
+    click(app, "Enqueue")
+    assert button(app, "Dequeue").enabled
+    assert "Push" not in labels(app) and "Pop" not in labels(app)
+
+
+def test_queue_quiz_wrong_answer_explains_fifo(app):
+    new_profile(app)
+    z4 = app.zones[3]
+    app.open_puzzle(z4, next(p for p in z4.puzzles if p.id == "z4_p2"))
+    scene = app.scene
+    options, right = scene.session.goal.options, scene.session.goal.correct
+    click(app, next(o for i, o in enumerate(options) if i != right))
+    assert scene.session.glitches == 1 and "FIFO" in scene.message and not scene.session.done
+    click(app, options[right])
+    assert scene.session.done
+
+
+def test_the_lock_keeper_sweeps_the_front_boat_to_the_output(app):
+    new_profile(app)
+    z4 = app.zones[3]
+    boss = z4.puzzles[-1]
+    app.open_puzzle(z4, boss)
+    scene = app.scene
+    front = scene.session.model.front()
+    moves = reference_moves(boss)
+    for move in moves[:boss.disruptions[0].after]:
+        play(app, move)
+    assert "Lock Keeper" in scene.message
+    assert front in scene.session.model.out
+    assert front in [v for v, _ in scene.renderer.output()], "the swept boat lands on the Output row"

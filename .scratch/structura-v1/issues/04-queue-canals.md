@@ -4,11 +4,11 @@
 
 **Blocked by:** 03 (The Stack Towers, plus answer buttons for quiz Puzzles)
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] Queue renderer joins the renderer contract suite; enqueue slides in at the back, dequeue slides out at the front to the Output row
-- [ ] Enqueue/Dequeue buttons via the same mechanism as Push/Pop; Dequeue disabled when empty
-- [ ] Quiz Puzzles reuse the answer UI; a wrong answer explains FIFO
-- [ ] Zone file for The Queue Canals (unlocked after The Stack Towers) passes the content contract, including the Lock Keeper's Disruption firing
-- [ ] Play-through test for the Zone passes to 3 Stars
+- [x] Queue renderer joins the renderer contract suite; enqueue slides in at the back, dequeue slides out at the front to the Output row
+- [x] Enqueue/Dequeue buttons via the same mechanism as Push/Pop; Dequeue disabled when empty
+- [x] Quiz Puzzles reuse the answer UI; a wrong answer explains FIFO
+- [x] Zone file for The Queue Canals (unlocked after The Stack Towers) passes the content contract, including the Lock Keeper's Disruption firing
+- [x] Play-through test for the Zone passes to 3 Stars
 - [ ] Launched and playable by hand

@@ -87,7 +87,7 @@ v1 ships, in order on the **Zone Map**: The Array Plains (done), The Linked Mars
 50. As a student, I want Enqueue and Dequeue buttons, so that I can only use the queue the way a queue allows.
 51. As a student, I want Puzzles that contrast with the Stack Towers (same input, order kept), so that I feel the difference between LIFO and FIFO.
 52. As a student, I want Trace Puzzles where a wrong answer reminds me of FIFO, so that I correct the specific misconception.
-53. As a student, I want to beat the Lock Keeper Boss, where an extra item sneaks into the back, so that I apply FIFO when the plan changes.
+53. As a student, I want to beat the Lock Keeper Boss, who opens the gate early and sweeps the front value out, so that I apply FIFO when the plan changes.
 
 ### Nexus Alpha
 54. As a student, I want Select Puzzles that describe a real scenario (an undo history, a ticket line, seat lookups, a news feed) and ask which structure fits, so that I practise choosing structures.

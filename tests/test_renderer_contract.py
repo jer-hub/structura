@@ -10,7 +10,7 @@ import pygame
 import pytest
 
 from clicks import PROMISED_TARGETS
-from structura.models import ArrayModel, LinkedListModel, Move, StackModel
+from structura.models import ArrayModel, LinkedListModel, Move, QueueModel, StackModel
 from structura.ui.renderers import RENDERERS, make_renderer
 
 pygame.init()
@@ -28,6 +28,7 @@ SAMPLES = {
     "linked_list": Sample(lambda: LinkedListModel([1, 2, 3, 4]), Move.of("insert_after", 0, 9),
                           Move.of("delete", 1)),
     "stack": Sample(lambda: StackModel([1, 2, 3, 4]), Move.of("push", 9), Move.of("pop")),
+    "queue": Sample(lambda: QueueModel([1, 2, 3, 4]), Move.of("enqueue", 9), Move.of("dequeue")),
 }
 
 

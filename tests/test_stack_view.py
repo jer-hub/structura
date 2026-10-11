@@ -82,3 +82,16 @@ def test_there_is_nothing_to_click_on_the_board():
     _, r = fresh()
     r.show_slots = True
     assert r.targets() == []
+
+
+def test_undoing_a_pop_sends_the_value_back_from_its_output_box():
+    m, r = fresh()
+    before = m.copy()
+    top = r.element_ids()[-1]
+    m.apply(Move.of("pop"))
+    r.sync(m)
+    run(r, 1)
+    (_, box), = r.output()
+    r.sync(before)
+    w = r.element_size()
+    assert (r.pos[top][0] + w / 2, r.pos[top][1] + w / 2) == pytest.approx(box.center, abs=1)
