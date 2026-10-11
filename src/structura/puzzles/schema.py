@@ -46,6 +46,9 @@ class LessonBeat:
     say: str
     do: list[str] = field(default_factory=list)
     code: str = ""
+    structure: str = ""                                # switch the board to this structure, from `initial`
+    initial: list = field(default_factory=list)
+    big_o: list[str] = field(default_factory=list)    # operations to compare in the Code Mirror
 
 
 @dataclass
@@ -90,6 +93,18 @@ def _puzzle(raw: dict, zone: dict) -> Puzzle:
     return p
 
 
+def _beat(raw: dict, zone: dict) -> LessonBeat:
+    from ..models import MODELS, complexity
+
+    b = LessonBeat(**raw)
+    if b.structure and b.structure not in MODELS:
+        raise ContentError(f"{zone['id']} Lesson: unknown structure {b.structure!r}")
+    unknown = [op for op in b.big_o if op not in complexity.OPERATIONS]
+    if unknown:
+        raise ContentError(f"{zone['id']} Lesson: unknown Big-O operations {unknown}")
+    return b
+
+
 def load_zone(path: Path) -> Zone:
     with open(path, "rb") as fh:
         data = tomllib.load(fh)
@@ -100,7 +115,7 @@ def load_zone(path: Path) -> Zone:
         lesson = Lesson(
             structure=l.get("structure", z["structure"]),
             initial=l.get("initial", []),
-            beats=[LessonBeat(**b) for b in l.get("beat", [])],
+            beats=[_beat(b, z) for b in l.get("beat", [])],
         )
     puzzles = [_puzzle(p, z) for p in data.get("puzzle", [])]
     return Zone(

@@ -14,12 +14,35 @@ initial = []
 
 [[lesson.beat]]
 say = "Every structure is good at some operations and bad at others. Choosing well is half of programming."
+structure = "array"
+initial = [3, 8, 5, 1]
+big_o = ["access_index", "search", "add_front", "add_back", "remove_front", "remove_back"]
 
 [[lesson.beat]]
-say = "Arrays: O(1) access by index, O(n) inserts at the front. Linked lists: O(1) at the head, O(n) to reach the middle."
+say = "An Array jumps straight to any position: O(1). But adding at the front shifts every cell right: O(n)."
+do = ["visit 2", "insert 0 9"]
 
 [[lesson.beat]]
-say = "Stacks and queues do less on purpose. When you only need LIFO or FIFO, they say so clearly and can't be misused."
+say = "A Linked List adds at the head in O(1), with nothing to shift. But reaching a position means walking from the head: O(n)."
+structure = "linked_list"
+initial = [3, 8, 5, 1]
+do = ["insert_head 9", "visit 0", "visit 1", "visit 2"]
+
+[[lesson.beat]]
+say = "A Stack only adds and removes at the top: Last In, First Out."
+structure = "stack"
+initial = [3, 8, 5]
+do = ["push 1", "pop"]
+
+[[lesson.beat]]
+say = "A Queue adds at the back and removes from the front: First In, First Out."
+structure = "queue"
+initial = [3, 8, 5]
+do = ["enqueue 1", "dequeue"]
+
+[[lesson.beat]]
+say = "Stacks and queues do less on purpose. When a job only needs LIFO or FIFO, they say so clearly and can't be misused."
+big_o = ["access_index", "search", "add_front", "add_back", "remove_front", "remove_back"]
 
 [[puzzle]]
 id = "nx_p1"

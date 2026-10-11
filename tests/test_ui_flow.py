@@ -407,3 +407,24 @@ def test_a_regular_puzzle_shows_code_not_a_table(app):
     nx = nexus(app)
     app.open_puzzle(nx, nx.puzzles[-1])
     assert app.scene.code_panel.table is None and app.scene.code_panel.snippet is not None
+
+
+def test_nexus_lesson_shows_each_structure_and_their_big_o(app):
+    """The comparison Lesson puts every structure on the board in turn, and
+    the Code Mirror shows the Big-O table to compare them."""
+    new_profile(app)
+    nx = nexus(app)
+    app.open_zone(nx)
+    click(app, "Lesson")
+    shown, tables = [], 0
+    while True:
+        settle(app)
+        scene = app.scene
+        assert scene.renderer.element_ids(), f"beat {scene.index + 1} has nothing on the board"
+        shown.append(type(scene.renderer))
+        tables += scene.code_panel.table is not None
+        if "Finish Lesson" in labels(app):
+            break
+        click(app, "Next")
+    assert set(shown) == {RENDERERS[s] for s in ("array", "linked_list", "stack", "queue")}
+    assert tables >= 1

@@ -14,6 +14,7 @@ class CodePanel:
         self.language = language
         self.snippet: library.Snippet | None = None
         self.table: tuple[list[str], list[tuple[str, list[str]]]] | None = None
+        self.table_title = ""
         self.bar_y: float | None = None
         self._goal_y: float | None = None
 
@@ -30,9 +31,9 @@ class CodePanel:
             if snippet:
                 self.snippet, self.table = snippet, None
 
-    def show_table(self, table) -> None:
-        """Select Puzzles: a Big-O table in place of code, as (operations, rows)."""
-        self.table, self.snippet = table, None
+    def show_table(self, table, title: str = "Big-O for this job") -> None:
+        """Select Puzzles and the Nexus Lesson: a Big-O table in place of code, as (operations, rows)."""
+        self.table, self.table_title, self.snippet = table, title, None
 
     def show_for(self, structure: str, op: str, preferred: str = "") -> None:
         self.show(preferred or library.DEFAULT_BY_OP.get((structure, op)))
@@ -70,8 +71,8 @@ class CodePanel:
         """One row per operation, one column per structure: the same in Java and Python."""
         ops, rows = self.table
         x0, y = self.rect.x + 14, self.rect.y + 44
-        theme.draw_text(surf, "Big-O for this job", (x0, y), 18, theme.TEXT, bold=True)
-        y += 40
+        theme.draw_text(surf, self.table_title, (x0, y), 18, theme.TEXT, bold=True)
+        y += 34
         op_w = 118
         col_w = (self.rect.right - 14 - x0 - op_w) / max(1, len(rows))
         centres = [x0 + op_w + col_w * (k + 0.5) for k in range(len(rows))]
@@ -87,5 +88,5 @@ class CodePanel:
                 cell = cells[i]
                 colour = theme.MUTED if cell == "—" else (theme.GOOD if cell == "O(1)" else theme.ACTIVE)
                 theme.draw_text(surf, cell, (cx, y + 4), 16, colour, mono=True, center=True)
-            y = max(end, y + 30) + 10
+            y = max(end, y + 24) + 6
         theme.draw_text(surf, "— means it can't do that at all.", (x0, y + 6), 13, theme.MUTED)

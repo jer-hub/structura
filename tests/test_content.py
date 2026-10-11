@@ -8,7 +8,7 @@ import pytest
 from structura.codemirror import library
 from structura.models import complexity, make
 from structura.puzzles.hints import lint
-from structura.puzzles.schema import load_all
+from structura.puzzles.schema import ContentError, load_all, load_zone
 from structura.puzzles.session import PuzzleSession, reference_moves
 
 ZONES = load_all()
@@ -92,6 +92,8 @@ def test_code_mirror_snippet_exists_in_both_languages(puzzle):
 def test_lesson_scripts_run(zone):
     model = make(zone.lesson.structure, zone.lesson.initial)
     for beat in zone.lesson.beats:
+        if beat.structure:
+            model = make(beat.structure, beat.initial)
         model.run(beat.do)
         if beat.code:
             assert library.load(beat.code, "java") is not None
@@ -122,3 +124,22 @@ def test_every_select_scenario_has_a_unique_best_answer(puzzle):
     first, second = ranked[:2]
     key = lambda s: (complexity.cost(s, puzzle.goal["scenario"]), len(complexity.TABLE[s]))
     assert key(first) < key(second)
+
+
+def test_a_lesson_beat_with_an_unknown_big_o_operation_is_rejected(tmp_path):
+    path = tmp_path / "z.toml"
+    path.write_text('''[zone]
+id = "zx"
+name = "X"
+order = 1
+structure = "array"
+
+[lesson]
+initial = []
+
+[[lesson.beat]]
+say = "Compare."
+big_o = ["teleport"]
+''', encoding="utf-8")
+    with pytest.raises(ContentError, match="teleport"):
+        load_zone(path)

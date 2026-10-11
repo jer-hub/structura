@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pygame
 
-from ...models import make
+from ...models import complexity, make
 from .. import theme
 from ..anim import StepPlayer
 from ..app import SIZE, Scene
@@ -14,6 +14,7 @@ from ..widgets import Button
 
 VIZ = pygame.Rect(30, 120, 820, 400)
 CODE = pygame.Rect(870, 120, 380, 400)
+COMPARED = ["array", "linked_list", "stack", "queue"]
 
 
 class LessonScene(Scene):
@@ -35,6 +36,12 @@ class LessonScene(Scene):
             return
         self.index += 1
         beat = self.lesson.beats[self.index]
+        if beat.structure:                               # a Nexus Lesson compares structures in turn
+            self.model = make(beat.structure, beat.initial)
+            self.renderer = make_renderer(beat.structure, VIZ)
+            self.renderer.sync(self.model)
+        if beat.big_o:
+            self.code_panel.show_table(complexity.table(COMPARED, {op: 1 for op in beat.big_o}), "Big-O compared")
         for line in beat.do:
             for move in self.model.parse(line):
                 self.code_panel.show_for(self.model.structure, move.op, beat.code)
