@@ -13,6 +13,7 @@ class CodePanel:
         self.rect = rect
         self.language = language
         self.snippet: library.Snippet | None = None
+        self.table: tuple[list[str], list[tuple[str, list[str]]]] | None = None
         self.bar_y: float | None = None
         self._goal_y: float | None = None
 
@@ -25,7 +26,13 @@ class CodePanel:
 
     def show(self, key: str | None) -> None:
         if key:
-            self.snippet = library.load(key, self.language) or self.snippet
+            snippet = library.load(key, self.language)
+            if snippet:
+                self.snippet, self.table = snippet, None
+
+    def show_table(self, table) -> None:
+        """Select Puzzles: a Big-O table in place of code, as (operations, rows)."""
+        self.table, self.snippet = table, None
 
     def show_for(self, structure: str, op: str, preferred: str = "") -> None:
         self.show(preferred or library.DEFAULT_BY_OP.get((structure, op)))
@@ -34,6 +41,9 @@ class CodePanel:
         theme.panel(surf, self.rect)
         label = "CODE MIRROR · " + ("Java" if self.language == "java" else "Python")
         theme.draw_text(surf, label, (self.rect.x + 14, self.rect.y + 10), 15, theme.MUTED, bold=True)
+        if self.table:
+            self._draw_table(surf)
+            return
         if not self.snippet:
             return
         active = set(self.snippet.lines_for(step_kind)) if step_kind else set()
@@ -55,3 +65,27 @@ class CodePanel:
             surf.blit(img, (self.rect.x + 16, y))
             y += f.get_linesize()
         surf.set_clip(clip)
+
+    def _draw_table(self, surf) -> None:
+        """One row per operation, one column per structure: the same in Java and Python."""
+        ops, rows = self.table
+        x0, y = self.rect.x + 14, self.rect.y + 44
+        theme.draw_text(surf, "Big-O for this job", (x0, y), 18, theme.TEXT, bold=True)
+        y += 40
+        op_w = 118
+        col_w = (self.rect.right - 14 - x0 - op_w) / max(1, len(rows))
+        centres = [x0 + op_w + col_w * (k + 0.5) for k in range(len(rows))]
+        bottom = y
+        for cx, (name, _) in zip(centres, rows):
+            bottom = max(bottom, theme.draw_text(surf, name, (cx, y), 14, theme.MUTED, bold=True,
+                                                 width=int(col_w) - 4, center=True))
+        y = bottom + 8
+        for i, op in enumerate(ops):
+            pygame.draw.line(surf, theme.PANEL_EDGE, (x0, y - 4), (self.rect.right - 14, y - 4))
+            end = theme.draw_text(surf, op, (x0, y + 2), 14, theme.TEXT, width=op_w - 8)
+            for cx, (_, cells) in zip(centres, rows):
+                cell = cells[i]
+                colour = theme.MUTED if cell == "—" else (theme.GOOD if cell == "O(1)" else theme.ACTIVE)
+                theme.draw_text(surf, cell, (cx, y + 4), 16, colour, mono=True, center=True)
+            y = max(end, y + 30) + 10
+        theme.draw_text(surf, "— means it can't do that at all.", (x0, y + 6), 13, theme.MUTED)

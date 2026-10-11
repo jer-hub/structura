@@ -57,7 +57,7 @@ id = "nx_p4"
 title = "Breaking News"
 type = "select"
 stage = "challenge"
-brief = "A news feed adds every new story at the top and often drops the top story. It searches only occasionally. Which structure fits?"
+brief = "A news feed adds each new story at the top, often drops the top story, and rarely searches. Which structure fits?"
 ops = []
 goal = { kind = "select", choices = ["array", "linked_list", "stack", "queue"], scenario = { add_front = 10, remove_front = 5, search = 1 } }
 hints = ["Most of the work happens at the front.", "Which structure adds and removes at the front without shifting anything?"]

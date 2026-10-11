@@ -29,6 +29,8 @@ class PuzzleScene(Scene):
         self.player = StepPlayer(app.profile.speed)
         self.code_panel = CodePanel(CODE, app.profile.language)
         self.code_panel.show(puzzle.code)
+        if table := self.session.goal.big_o_table():
+            self.code_panel.show_table(table)
         self.selected: list[int] = []
         self.hint_move: Move | None = None
         self.glitch_flash = 0.0
@@ -181,11 +183,15 @@ class PuzzleScene(Scene):
         self.glitch_flash = max(0.0, self.glitch_flash - dt)
 
     def _draw_question(self, surf):
-        """Quiz Puzzles: the operation script, worked in the player's head, not on the board."""
-        script = self.session.goal.question()
-        if not script:
-            return
+        """Quiz Puzzles: the operation script, worked in the player's head, not on the board.
+        Select Puzzles: the job to choose a structure for."""
         ox, oy = self.board_shake.offset()
+        script = self.session.goal.question()
+        if not script:                                  # Select: the job stays in view after a Glitch replaces the message
+            theme.draw_text(surf, "The job", (VIZ.x + 30 + ox, VIZ.y + 24 + oy), 18, theme.MUTED)
+            theme.draw_text(surf, self.puzzle.brief, (VIZ.x + 30 + ox, VIZ.y + 56 + oy), 26, theme.TEXT,
+                            width=VIZ.w - 60)
+            return
         theme.draw_text(surf, "Operations", (VIZ.x + 30 + ox, VIZ.y + 24 + oy), 18, theme.MUTED)
         for k, line in enumerate(script):
             col, rowi = divmod(k, 4)

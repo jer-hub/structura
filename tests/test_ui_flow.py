@@ -16,6 +16,7 @@ from structura.persistence.store import Store
 from structura.puzzles.schema import load_all
 from structura.puzzles.session import reference_moves
 from structura.ui.app import App
+from structura.ui.renderers import RENDERERS
 from structura.ui.scenes.lesson import LessonScene
 from structura.ui.scenes.profiles import ProfileScene
 from structura.ui.scenes.puzzle import PuzzleScene
@@ -339,3 +340,70 @@ def test_the_lock_keeper_sweeps_the_front_boat_to_the_output(app):
     assert "Lock Keeper" in scene.message
     assert front in scene.session.model.out
     assert front in [v for v, _ in scene.renderer.output()], "the swept boat lands on the Output row"
+
+
+# ---- Nexus Alpha ------------------------------------------------------------
+def nexus(app):
+    return next(z for z in app.zones if z.id == "nexus_alpha")
+
+
+def test_nexus_alpha_play_through(app):
+    new_profile(app)
+    nx = nexus(app)
+    for z in app.zones[:3]:
+        clear_zone(app, z)
+    app.open_map()
+    assert not button(app, "Nexus Alpha").enabled, "locked until The Queue Canals is cleared"
+    clear_zone(app, app.zones[3])
+    app.open_map()
+    click(app, "Nexus Alpha")
+
+    click(app, "Lesson")
+    while not any(b.label == "Finish Lesson" for b in app.scene.buttons):
+        click(app, "Next")
+        settle(app)
+    click(app, "Finish Lesson")
+
+    said = []
+    for puzzle in nx.puzzles:
+        click(app, puzzle.title)
+        scene = app.scene
+        assert type(scene.renderer) is RENDERERS[puzzle.structure], "each Puzzle's own structure, not the Zone's"
+        for move in reference_moves(puzzle):
+            play(app, move)
+            said.append(scene.message)
+        assert scene.session.done, puzzle.id
+        click(app, "See Results")
+        assert app.scene.stars == 3, puzzle.id
+        click(app, "Back to Zone")
+    assert all(d.say in said for d in nx.puzzles[-1].disruptions), "both of the Serpent's strikes are shown"
+    assert {p.id for p in nx.puzzles} <= set(app.store.results(app.profile.id))
+
+
+@pytest.mark.parametrize("language", ["Java", "Python"])
+def test_select_puzzle_offers_structures_and_shows_their_big_o(app, language):
+    new_profile(app, language=language)
+    nx = nexus(app)
+    puzzle = next(p for p in nx.puzzles if p.id == "nx_p3")          # Seat Numbers
+    app.open_puzzle(nx, puzzle)
+    scene = app.scene
+    options = ["Array", "Linked List", "Stack", "Queue"]
+    assert scene.session.goal.options == options and all(o in labels(app) for o in options)
+    head, rows = scene.code_panel.table
+    assert "read the item at a position" in head
+    assert [name for name, _ in rows] == options
+    app.draw()
+
+    click(app, "Linked List")
+    assert scene.session.glitches == 1 and not scene.session.done
+    assert "Linked List takes O(n)" in scene.message and "Array takes O(1)" in scene.message
+    assert scene.code_panel.table is not None, "the table stays up after a Glitch"
+    click(app, "Array")
+    assert scene.session.done
+
+
+def test_a_regular_puzzle_shows_code_not_a_table(app):
+    new_profile(app)
+    nx = nexus(app)
+    app.open_puzzle(nx, nx.puzzles[-1])
+    assert app.scene.code_panel.table is None and app.scene.code_panel.snippet is not None

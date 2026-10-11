@@ -58,6 +58,10 @@ class Goal:
         """Lines to show in place of the board when the Puzzle is answered, not played."""
         return []
 
+    def big_o_table(self):
+        """Select Puzzles: (operations, rows) for the Code Mirror, in place of code."""
+        return None
+
 
 # ---------------------------------------------------------------------------
 # Search solver for "reach this state" goals
@@ -385,6 +389,9 @@ class SelectGoal(Goal):
 
     def wrong_answer(self, index):
         return complexity.explain(self.choices[index], self.choices[self.correct], self.scenario)
+
+    def big_o_table(self):
+        return complexity.table(self.choices, self.scenario)
 
 
 GOALS = {"sorted": SortedGoal, "target": TargetGoal, "script": ScriptGoal,

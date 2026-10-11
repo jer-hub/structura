@@ -105,3 +105,42 @@ def test_complexity_picks_restrictive_structure_on_ties():
     lookup = {"access_index": 10, "add_back": 1}
     assert complexity.best(["array", "linked_list"], lookup) == "array"
     assert "O(n)" in complexity.explain("linked_list", "array", lookup)
+
+
+ALL = ["array", "linked_list", "stack", "queue"]
+SCENARIOS = [{"add_back": 10, "remove_back": 10}, {"add_back": 10, "remove_front": 10},
+             {"access_index": 10, "add_back": 1}, {"add_front": 10, "remove_front": 5, "search": 1}]
+
+
+@pytest.mark.parametrize("scenario", SCENARIOS)
+def test_every_wrong_choice_names_an_operation_and_both_big_os(scenario):
+    """Spec story 55: the explanation is Big-O reasoning, even when the wrong
+    choice is just as fast, or can't do the job at all."""
+    names = {"array": "Array", "linked_list": "Linked List", "stack": "Stack", "queue": "Queue"}
+    right = complexity.best(ALL, scenario)
+    for wrong in ALL:
+        if wrong == right:
+            continue
+        text = complexity.explain(wrong, right, scenario)
+        assert names[wrong] in text and names[right] in text, text
+        op = next(op for op in scenario if complexity.OPERATIONS[op] in text)
+        assert complexity.TABLE[right][op] in text, text
+        assert "a Array" not in text, text
+
+
+def test_explanations_use_an_before_array():
+    assert "an Array" in complexity.explain("array", "stack", {"add_back": 5, "remove_back": 5})
+
+
+def test_big_o_rows_cover_the_choices_and_mark_missing_operations():
+    scenario = {"add_back": 10, "remove_front": 10}
+    head, rows = complexity.table(["array", "queue"], scenario)
+    assert head == ["add at the back", "remove from the front"]
+    assert rows == [("Array", ["O(1)", "O(n)"]), ("Queue", ["O(1)", "O(1)"])]
+    head, rows = complexity.table(["stack"], {"access_index": 1})
+    assert rows == [("Stack", ["—"])], "a structure that can't do it at all"
+
+
+def test_a_just_as_fast_choice_is_told_what_it_lets_you_misuse():
+    text = complexity.explain("array", "stack", {"add_back": 10, "remove_back": 10})
+    assert "remove from the front" in text, "an Array allows what a Stack forbids"

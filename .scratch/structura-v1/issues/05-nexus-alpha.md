@@ -4,12 +4,12 @@
 
 **Blocked by:** 04 (The Queue Canals)
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] Select Puzzles reuse the answer UI with options labelled by structure display names
-- [ ] Wrong-choice explanations come from the complexity table and name a specific operation and its Big-O on both structures
-- [ ] The Code Mirror panel shows a Big-O table for the Puzzle's choices during Select Puzzles (in either language setting)
-- [ ] The Zone uses the structure each Puzzle declares (array, queue), not just the Zone default
-- [ ] Zone file for Nexus Alpha (unlocked after The Queue Canals) passes the content contract; every Select scenario has a unique best answer
-- [ ] Play-through test for the Zone passes to 3 Stars, including the Serpent's two Disruptions
+- [x] Select Puzzles reuse the answer UI with options labelled by structure display names
+- [x] Wrong-choice explanations come from the complexity table and name a specific operation and its Big-O on both structures
+- [x] The Code Mirror panel shows a Big-O table for the Puzzle's choices during Select Puzzles (in either language setting)
+- [x] The Zone uses the structure each Puzzle declares (array, queue), not just the Zone default
+- [x] Zone file for Nexus Alpha (unlocked after The Queue Canals) passes the content contract; every Select scenario has a unique best answer
+- [x] Play-through test for the Zone passes to 3 Stars, including the Serpent's two Disruptions
 - [ ] Launched and playable by hand

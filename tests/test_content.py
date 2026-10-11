@@ -6,7 +6,7 @@ import random
 import pytest
 
 from structura.codemirror import library
-from structura.models import make
+from structura.models import complexity, make
 from structura.puzzles.hints import lint
 from structura.puzzles.schema import load_all
 from structura.puzzles.session import PuzzleSession, reference_moves
@@ -102,3 +102,23 @@ def test_queue_canals_follow_the_stack_towers():
     assert z4.name == "The Queue Canals" and z4.structure == "queue" and z4.requires == ["z3"]
     assert z4.puzzles[-1].stage == "boss" and z4.puzzles[-1].disruptions
     assert any(p.goal["kind"] == "quiz" for p in z4.puzzles)
+
+
+def test_nexus_alpha_follows_the_queue_canals():
+    nx = next(z for z in ZONES if z.id == "nexus_alpha")
+    assert nx.name == "Nexus Alpha" and nx.is_nexus and nx.requires == ["z4"]
+    assert ZONES.index(nx) == ZONES.index(next(z for z in ZONES if z.id == "z4")) + 1
+    assert sum(p.type == "select" for p in nx.puzzles) >= 4
+    assert any(p.structure == "queue" and p.goal["kind"] == "quiz" for p in nx.puzzles), "mixed-structure quiz"
+    boss = nx.puzzles[-1]
+    assert boss.stage == "boss" and boss.structure == "array" and len(boss.disruptions) == 2
+
+
+@pytest.mark.parametrize("puzzle", [p for p in PUZZLES if p.goal["kind"] == "select"], ids=lambda p: p.id)
+def test_every_select_scenario_has_a_unique_best_answer(puzzle):
+    goal = PuzzleSession(puzzle).goal
+    ranked = complexity.ranking(puzzle.goal["choices"], puzzle.goal["scenario"])
+    assert puzzle.goal["choices"][goal.correct] == ranked[0]
+    first, second = ranked[:2]
+    key = lambda s: (complexity.cost(s, puzzle.goal["scenario"]), len(complexity.TABLE[s]))
+    assert key(first) < key(second)
