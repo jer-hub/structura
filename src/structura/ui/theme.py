@@ -64,6 +64,18 @@ def panel(surf, rect, colour=PANEL, edge=PANEL_EDGE, radius=10):
     pygame.draw.rect(surf, edge, rect, 1, border_radius=radius)
 
 
+def star(surf, center, size, colour):
+    import math
+    cx, cy = center
+    pts = []
+    for k in range(10):
+        r = size / 2 if k % 2 == 0 else size / 4.6
+        a = -math.pi / 2 + k * math.pi / 5
+        pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    if size > 2:
+        pygame.draw.polygon(surf, colour, pts)
+
+
 def stars(surf, center, count, size=26, total=3):
     x0 = center[0] - (total - 1) * size * 0.6
     for i in range(total):

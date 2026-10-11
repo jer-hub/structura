@@ -8,6 +8,7 @@ from .. import theme
 from ..anim import StepPlayer
 from ..app import SIZE, Scene
 from ..code_panel import CodePanel
+from ..fx import Effects
 from ..renderers.base import make_renderer
 from ..widgets import Button
 
@@ -26,6 +27,7 @@ class LessonScene(Scene):
         self.player = StepPlayer(app.profile.speed)
         self.code_panel = CodePanel(CODE, app.profile.language)
         self.index = -1
+        self.fx = Effects()
         self._next()
 
     def _next(self):
@@ -38,6 +40,9 @@ class LessonScene(Scene):
                 self.code_panel.show_for(self.model.structure, move.op, beat.code)
                 self.player.play(self.model.apply(move))
         self.renderer.sync(self.model)
+        for line in beat.do:
+            if line.startswith("visit") and self.model.structure == "array":
+                self.fx.ripple(self.renderer.center_of(int(line.split()[1])), theme.ACTIVE, radius=70)
         last = self.index == len(self.lesson.beats) - 1
         bar = SIZE[1] - 72
         self.buttons = [Button("Back", pygame.Rect(40, bar, 140, 44), lambda: self.app.open_zone(self.zone))]
@@ -55,6 +60,8 @@ class LessonScene(Scene):
     def update(self, dt):
         self.player.update(dt)
         self.renderer.update(dt)
+        self.code_panel.update(dt)
+        self.fx.update(dt)
 
     def draw(self, surf):
         theme.draw_text(surf, f"{self.zone.name} · Lesson", (40, 26), 30, self.zone.color, bold=True)
@@ -70,3 +77,4 @@ class LessonScene(Scene):
         if step and step.text:
             theme.draw_text(surf, step.text, (box.x + 18, y + 4), 17, theme.ACTIVE)
         super().draw(surf)
+        self.fx.draw(surf)

@@ -18,8 +18,18 @@ class Button:
     accent: tuple = theme.IDLE
     size: int = 20
     hover: bool = False
+    pressed: bool = False
 
     def draw(self, surf):
+        saved = self.rect
+        if self.enabled and self.pressed:
+            self.rect = saved.inflate(-6, -4)
+        elif self.enabled and self.hover:
+            self.rect = saved.move(0, -2)
+        self._draw(surf)
+        self.rect = saved
+
+    def _draw(self, surf):
         if not self.enabled:
             bg = theme.PANEL
         elif self.selected:
@@ -36,6 +46,12 @@ class Button:
     def handle(self, event) -> bool:
         if event.type == pygame.MOUSEMOTION:
             self.hover = self.rect.collidepoint(event.pos)
+            if not self.hover:
+                self.pressed = False
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            self.pressed = self.rect.collidepoint(event.pos)
+        if event.type == pygame.MOUSEBUTTONUP:
+            self.pressed = False
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1 and self.enabled \
                 and self.rect.collidepoint(event.pos):
             self.on_click()

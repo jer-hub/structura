@@ -8,6 +8,7 @@ import pygame
 from ..persistence.store import Profile, Store
 from ..puzzles.schema import Puzzle, Zone
 from . import theme
+from .fx import Fade
 
 SIZE = (1280, 720)
 
@@ -46,12 +47,14 @@ class App:
         self.report_dir = report_dir
         self.profile: Profile | None = None
         self.running = True
+        self.fade = Fade()
         from .scenes.profiles import ProfileScene
         self.scene: Scene = ProfileScene(self)
 
     # ---- navigation ------------------------------------------------------
     def go(self, scene: Scene) -> None:
         self.scene = scene
+        self.fade.start()
 
     def sign_in(self, profile: Profile) -> None:
         self.profile = profile
@@ -85,10 +88,12 @@ class App:
 
     def update(self, dt: float) -> None:
         self.scene.update(dt)
+        self.fade.update(dt)
 
     def draw(self) -> None:
         self.screen.fill(theme.BG)
         self.scene.draw(self.screen)
+        self.fade.draw(self.screen, theme.BG)
 
     def run(self) -> None:
         clock = pygame.time.Clock()
