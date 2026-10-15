@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Shared renderer contract and play-through helper)
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] Stack renderer joins the renderer contract suite; pushes drop in from above and pops lift off to the Output row
 - [x] Push/Pop buttons appear only when those ops are allowed; Pop is disabled on an empty stack
@@ -13,7 +13,7 @@
 - [x] Zone file for The Stack Towers (unlocked after The Linked Marshes) passes the content contract
 - [x] Play-through test for the Zone passes to 3 Stars, including at least one quiz Puzzle
 - [x] A session-level test covers a wrong then right answer (Glitch counted, Puzzle finished)
-- [~] Launched and playable by hand
+- [x] Launched and playable by hand
 
 ## Comments
 
@@ -23,4 +23,5 @@ Implemented. Waiting on the one human step: launch the game and play The Stack T
 - Fixed in passing: models change in place, so the values of removed elements are now remembered from the last sync. Ghosts and popped blocks had been drawn without their values.
 - Buttons: `BUTTON_OPS` in the Puzzle scene (push/pop/enqueue/dequeue), shown only for the Puzzle's ops. A remove op is enabled only when the model allows it.
 - Answer UI: any goal with `options` gets one button per option inside the board, and `Goal.question()` lines are shown in place of the board. Fits 4 options (2×2). Ticket 05 still needs to add the Big-O table for Select Puzzles.
+- 2026-10-15: the faculty owner played The Stack Towers by hand and confirmed it is good. Ticket closed; 06 is unblocked.
 - Open content question for faculty: the briefs of z3_p2 and z3_p4 restate their scripts, which `goal.script` already holds (same fact in two places, see ADR 0001). "Output" is now in CONTEXT.md.
