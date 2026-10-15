@@ -38,6 +38,17 @@ def click_at(app, pos):
     app.draw()
 
 
+def wheel(app, y):
+    """Turn the mouse wheel: y > 0 is away from the player (up)."""
+    app.handle(pygame.event.Event(pygame.MOUSEWHEEL, x=0, y=y, flipped=False, precise_x=0.0, precise_y=float(y)))
+    app.draw()
+
+
+def press(app, key):
+    app.handle(pygame.event.Event(pygame.KEYDOWN, key=key, mod=0, unicode="", scancode=0))
+    app.draw()
+
+
 def button(app, label):
     matches = [b for b in app.scene.buttons if b.label == label]
     assert matches, f"no button {label!r} on {type(app.scene).__name__}: {[b.label for b in app.scene.buttons]}"

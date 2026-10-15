@@ -8,22 +8,60 @@ from ..app import SIZE, Scene
 from ..widgets import Button, Row, TextField
 
 
+TOP, PITCH, VISIBLE = 250, 56, 7     # seven rows still leave New Profile on screen
+ROW_W, LABEL_PAD = 440, 20
+HINT_X = SIZE[0] // 2 + ROW_W // 2 + 16
+
+
+def _label(name: str, student_id: str) -> str:
+    """Name and student ID, the name shortened with an ellipsis if the two don't fit on a row."""
+    tail = f"  ({student_id})"
+
+    def fits(text: str) -> bool:
+        return theme.font(20).size(text)[0] <= ROW_W - LABEL_PAD
+
+    if fits(name + tail):
+        return name + tail
+    while name and not fits(name + "\u2026" + tail):
+        name = name[:-1]
+    label = name.rstrip() + "\u2026" + tail
+    while not fits(label):
+        label = label[:-2] + "\u2026"
+    return label
+
+
 class ProfileScene(Scene):
     def __init__(self, app):
         super().__init__(app)
         self.creating = False
         self.language = "python"
+        self.profiles = app.store.profiles()
+        self.first = 0                # index of the top Profile shown
         self._build()
+
+    @property
+    def more_above(self) -> int:
+        return self.first
+
+    @property
+    def more_below(self) -> int:
+        return max(0, len(self.profiles) - self.first - VISIBLE)
+
+    def _scroll(self, rows: int):
+        first = min(max(self.first + rows, 0), max(0, len(self.profiles) - VISIBLE))
+        if first != self.first:
+            self.first = first
+            self._build()
 
     def _build(self):
         self.buttons, self.fields = [], []
         cx = SIZE[0] // 2
         if not self.creating:
-            y = 250
-            for p in self.app.store.profiles():
-                self.buttons.append(Button(f"{p.name}  ({p.student_id})", pygame.Rect(cx - 220, y, 440, 46),
+            y = TOP
+            for p in self.profiles[self.first:self.first + VISIBLE]:
+                self.buttons.append(Button(_label(p.name, p.student_id), pygame.Rect(cx - ROW_W // 2, y, ROW_W, 46),
                                            lambda p=p: self.app.sign_in(p)))
-                y += 56
+                y += PITCH
             self.buttons.append(Button("New Profile", pygame.Rect(cx - 110, max(y + 20, 330), 220, 48),
                                        self._start_create, accent=theme.GOOD))
             return
@@ -62,9 +100,14 @@ class ProfileScene(Scene):
         self.app.sign_in(profile)
 
     def on_event(self, event):
-        if self.creating and event.type == pygame.KEYDOWN and event.key == pygame.K_TAB:
+        if not self.creating:
+            if event.type == pygame.MOUSEWHEEL:
+                self._scroll(-event.y)
+            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_UP, pygame.K_DOWN):
+                self._scroll(1 if event.key == pygame.K_DOWN else -1)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_TAB:
             self.name.focused, self.sid.focused = self.sid.focused, self.name.focused
-        if self.creating and event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
             self._create()
 
     def draw(self, surf):
@@ -76,6 +119,13 @@ class ProfileScene(Scene):
             theme.draw_text(surf, "Code Mirror language", (cx - 220, 414), 18, theme.MUTED)
         else:
             theme.draw_text(surf, "Who's playing?", (cx, 210), 24, center=True)
+            last = TOP + (VISIBLE - 1) * PITCH
+            if self.more_above:
+                theme.draw_text(surf, f"\u2191 {self.more_above} more", (HINT_X, TOP + 12), 18, theme.MUTED)
+            if self.more_below:
+                theme.draw_text(surf, f"\u2193 {self.more_below} more", (HINT_X, last + 12), 18, theme.MUTED)
+            if self.more_above or self.more_below:
+                theme.draw_text(surf, "Scroll or use the arrow keys", (HINT_X, last + 34), 16, theme.MUTED)
         if self.message:
             theme.draw_text(surf, self.message, (cx, 600), 20, theme.BAD, center=True)
         super().draw(surf)

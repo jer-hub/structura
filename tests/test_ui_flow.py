@@ -3,6 +3,7 @@ Profile -> Zone Map -> Z1 Lesson -> every Z1 Puzzle -> Results -> Progress Repor
 import dataclasses
 import json
 import os
+from functools import partial
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
@@ -10,13 +11,14 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 import pytest
 
-from clicks import button, click, click_at, labels, perform, play, settle, target
+from clicks import button, click, click_at, labels, perform, play, press, settle, target, wheel
 from structura.models import Move
 from structura.persistence import report
 from structura.persistence.store import Store
 from structura.puzzles.schema import load_all
 from structura.puzzles.session import reference_moves
-from structura.ui.app import App
+from structura.ui import theme
+from structura.ui.app import SIZE, App
 from structura.ui.renderers import RENDERERS
 from structura.ui.scenes.lesson import LessonScene
 from structura.ui.scenes.profiles import ProfileScene
@@ -68,6 +70,89 @@ def test_profile_requires_name_and_id(app):
     click(app, "Create")
     assert isinstance(app.scene, ProfileScene)
     assert "required" in app.scene.message
+
+
+# ---- a long Profile list ----------------------------------------------------
+def profiles_on_screen(app, count):
+    """A lab PC holding `count` Profiles, back at the Profile screen (as Switch Profile does)."""
+    for i in range(1, count + 1):
+        app.store.create_profile(f"Student {i:02d}", f"2024-{i:04d}")
+    app.go(ProfileScene(app))
+    app.draw()
+
+
+def profile_buttons(app):
+    return [b for b in app.scene.buttons if b.label != "New Profile"]
+
+
+SCREEN = pygame.Rect((0, 0), SIZE)
+
+
+@pytest.mark.parametrize("count, new_profile_top", [(3, 438), (7, 662)])
+def test_a_short_profile_list_looks_as_it_always_has(app, count, new_profile_top):
+    profiles_on_screen(app, count)
+    assert [b.rect.top for b in profile_buttons(app)] == [250 + 56 * i for i in range(count)]
+    assert button(app, "New Profile").rect.top == new_profile_top
+    assert (app.scene.more_above, app.scene.more_below) == (0, 0)
+    wheel(app, -1)
+    press(app, pygame.K_DOWN)
+    assert [b.rect.top for b in profile_buttons(app)] == [250 + 56 * i for i in range(count)]
+
+
+def scroll_until_shown(app, label, scroll):
+    for _ in range(len(app.store.profiles())):
+        if any(b.label == label for b in profile_buttons(app)):
+            return
+        scroll(app)
+    raise AssertionError(f"never scrolled to {label!r}")
+
+
+SCROLLING = {
+    "mouse wheel": (partial(wheel, y=-1), partial(wheel, y=1)),
+    "arrow keys": (partial(press, key=pygame.K_DOWN), partial(press, key=pygame.K_UP)),
+}
+
+
+@pytest.mark.parametrize("scroll_down, scroll_up", SCROLLING.values(), ids=SCROLLING.keys())
+def test_a_long_profile_list_scrolls_to_every_profile(app, scroll_down, scroll_up):
+    profiles_on_screen(app, 12)
+    shown = profile_buttons(app)
+    assert all(SCREEN.contains(b.rect) for b in app.scene.buttons)
+    assert not any(b.rect.colliderect(button(app, "New Profile").rect) for b in shown)
+    assert app.scene.more_above == 0 and app.scene.more_below == 12 - len(shown)
+
+    scroll_until_shown(app, "Student 12  (2024-0012)", scroll_down)
+    assert app.scene.more_above == 12 - len(profile_buttons(app)) and app.scene.more_below == 0
+    assert all(SCREEN.contains(b.rect) for b in app.scene.buttons)
+    scroll_down(app)                                    # already at the end: nothing moves
+    assert profile_buttons(app)[-1].label.startswith("Student 12")
+
+    scroll_up(app)
+    assert app.scene.more_below == 1
+    scroll_down(app)
+    click(app, "Student 12  (2024-0012)")
+    assert isinstance(app.scene, ZoneMapScene) and app.profile.student_id == "2024-0012"
+
+
+def test_a_long_name_is_shortened_to_fit_but_keeps_the_student_id(app):
+    app.store.create_profile("W" * 40, "2024-0001")
+    app.store.create_profile("Ana Cruz", "X" * 40)
+    app.go(ProfileScene(app))
+    long_name = next(b for b in profile_buttons(app) if "2024-0001" in b.label)
+    long_id = next(b for b in profile_buttons(app) if b is not long_name)
+    assert long_name.label.endswith("\u2026  (2024-0001)")
+    for b in (long_name, long_id):
+        assert theme.font(b.size).size(b.label)[0] <= b.rect.w - 20, b.label
+    click_at(app, long_name.rect.center)
+    assert app.profile.name == "W" * 40
+
+
+def test_new_profile_still_works_with_a_long_list(app):
+    profiles_on_screen(app, 12)
+    wheel(app, -1)
+    assert SCREEN.contains(button(app, "New Profile").rect)
+    new_profile(app, name="Zoe Reyes", sid="2024-0099")
+    assert isinstance(app.scene, ZoneMapScene) and app.profile.student_id == "2024-0099"
 
 
 def test_full_slice(app, tmp_path):
