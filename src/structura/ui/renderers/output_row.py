@@ -100,7 +100,7 @@ class OutputRowRenderer(Renderer):
     def update(self, dt):
         super().update(dt)
         for eid, f in list(self.flyers.items()):
-            f.motion.tween.update(dt)
+            f.motion.tween.update(dt * self.speed)
             if f.motion.tween.done:
                 del self.flyers[eid]
 

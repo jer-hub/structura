@@ -20,7 +20,9 @@ RENDERERS: dict[str, type[Renderer]] = {
 }
 
 
-def make_renderer(structure: str, rect: pygame.Rect) -> Renderer:
+def make_renderer(structure: str, rect: pygame.Rect, speed: float = 1.0) -> Renderer:
     if structure not in RENDERERS:
         raise NotImplementedError(f"no renderer for {structure} yet")
-    return RENDERERS[structure](rect)
+    renderer = RENDERERS[structure](rect)
+    renderer.speed = speed
+    return renderer

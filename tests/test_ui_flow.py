@@ -9,7 +9,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 import pytest
 
-from clicks import button, click, click_at, labels, play, settle, target
+from clicks import button, click, click_at, labels, perform, play, settle, target
 from structura.models import Move
 from structura.persistence import report
 from structura.persistence.store import Store
@@ -138,6 +138,79 @@ def test_disruption_is_announced(app):
         play(app, move)
         announced.append(app.scene.message)
     assert any("Shuffler flips" in m for m in announced)
+
+
+# ---- animation speed ------------------------------------------------------
+def speed(app):
+    """The Zone Map's animation speed button label."""
+    return next(label for label in labels(app) if label.startswith("Speed:"))
+
+
+def set_speed(app, label):
+    app.open_map()
+    while speed(app) != label:
+        click(app, speed(app))
+
+
+def test_animation_speed_cycles_on_the_zone_map_and_is_saved(app, tmp_path):
+    new_profile(app)
+    assert speed(app) == "Speed: 1x"
+    for shown in ("Speed: 2x", "Speed: 0.5x", "Speed: 1x", "Speed: 2x"):
+        click(app, speed(app))
+        assert speed(app) == shown
+    reopened = Store(tmp_path / "t.db")
+    assert [p.speed for p in reopened.profiles()] == [2.0]
+    reopened.close()
+
+
+def seconds_until(app, finished, dt=0.005):
+    t = 0.0
+    while not finished():
+        app.update(dt)
+        t += dt
+        assert t < 10, "the animation never finished"
+    return t
+
+
+def board_at_rest(scene):
+    return lambda: all(scene.renderer.at_rest(e) for e in scene.renderer.element_ids())
+
+
+def swap_animation_times(app, label):
+    """(board motion, Step playback) in seconds for the first swap in Bubbling Up."""
+    set_speed(app, label)
+    z1 = app.zones[0]
+    app.open_puzzle(z1, next(p for p in z1.puzzles if p.id == "z1_p3"))     # Bubbling Up
+    scene = app.scene
+    perform(app, scene.session.expected())
+    board = seconds_until(app, board_at_rest(scene))
+    steps = board + seconds_until(app, lambda: not scene.player.busy)
+    return board, steps
+
+
+def test_a_puzzle_animates_at_the_profile_speed(app):
+    new_profile(app)
+    board_1x, steps_1x = swap_animation_times(app, "Speed: 1x")
+    board_2x, steps_2x = swap_animation_times(app, "Speed: 2x")
+    assert board_2x == pytest.approx(board_1x / 2, rel=0.15)
+    assert steps_2x == pytest.approx(steps_1x / 2, rel=0.15)
+
+
+def first_lesson_motion_time(app, label):
+    """Seconds the board moves for after the first Lesson beat that moves anything."""
+    set_speed(app, label)
+    app.open_lesson(app.zones[0])
+    scene = app.scene
+    settle(app)
+    while board_at_rest(scene)():
+        click(app, "Next")
+    return seconds_until(app, board_at_rest(scene))
+
+
+def test_a_lesson_animates_at_the_profile_speed(app):
+    new_profile(app)
+    at_1x = first_lesson_motion_time(app, "Speed: 1x")
+    assert first_lesson_motion_time(app, "Speed: 2x") == pytest.approx(at_1x / 2, rel=0.15)
 
 
 # ---- The Linked Marshes ---------------------------------------------------

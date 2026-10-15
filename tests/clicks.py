@@ -67,15 +67,19 @@ def target(app, kind, key):
     raise AssertionError(f"no {kind} target {key!r}")
 
 
-def play(app, move: Move):
-    """Perform one Move the way a player would, then let the animation finish."""
+def perform(app, move: Move):
+    """Make one Move the way a player would, without waiting for its animation."""
     if move.op == "answer":                       # any structure: click the option's button
         click(app, app.scene.session.goal.options[move.args[0]])
-        settle(app)
         return
     structure = app.scene.session.puzzle.structure
     assert structure in PLAYERS, f"no click contract for {structure!r}"
     PLAYERS[structure](app, move)
+
+
+def play(app, move: Move):
+    """Perform one Move the way a player would, then let the animation finish."""
+    perform(app, move)
     settle(app)
 
 

@@ -175,7 +175,7 @@ class LinkedListRenderer(Renderer):
         super().update(dt)
         if self.cursor is not None:
             target = self.pos[self.cursor][0] + self.element_size() / 2
-            self.cursor_x = approach(self.cursor_x, target, dt)
+            self.cursor_x = approach(self.cursor_x, target, dt * self.speed)
 
     # ---- drawing --------------------------------------------------------------
     def draw_under(self, surf, hint_slot, pulse, offset):

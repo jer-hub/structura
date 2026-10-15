@@ -92,6 +92,22 @@ def test_shake_moves_only_named_elements_and_settles(structure):
     assert r.draw_offset(r.eid_of(first)) == (0, 0)
 
 
+def test_slow_speed_slows_element_motion_but_not_glitch_shakes(structure):
+    model, r = fresh(structure)
+    r.speed = 0.5
+    before = set(r.element_ids())
+    model.apply(SAMPLES[structure].add)
+    r.sync(model)
+    (new,) = set(r.element_ids()) - before
+    first = r.keys()[0]
+    r.shake([first])
+    run(r, 0.6)
+    assert not r.at_rest(new), "at 0.5x the new element is still growing in"
+    assert r.draw_offset(r.eid_of(first)) == (0, 0), "a Glitch shake takes the same time at any speed"
+    run(r, 0.6)
+    assert r.at_rest(new)
+
+
 def test_celebration_wave_runs_in_reading_order(structure):
     _, r = fresh(structure)
     r.celebrate()

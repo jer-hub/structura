@@ -24,7 +24,7 @@ class PuzzleScene(Scene):
         super().__init__(app)
         self.zone, self.puzzle = zone, puzzle
         self.session = PuzzleSession(puzzle)
-        self.renderer = make_renderer(puzzle.structure, VIZ)
+        self.renderer = make_renderer(puzzle.structure, VIZ, app.profile.speed)
         self.renderer.ops = set(puzzle.ops)
         self.player = StepPlayer(app.profile.speed)
         self.code_panel = CodePanel(CODE, app.profile.language)

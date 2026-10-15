@@ -9,6 +9,7 @@ from ..app import SIZE, Scene
 from ..widgets import Button, Row
 
 MAP = pygame.Rect(40, 110, SIZE[0] - 80, SIZE[1] - 210)
+SPEEDS = (0.5, 1.0, 2.0)
 
 
 class ZoneMapScene(Scene):
@@ -33,6 +34,7 @@ class ZoneMapScene(Scene):
         self.buttons += [
             row.add("Export Progress Report", self._export, accent=theme.GOOD),
             row.add(f"Code: {'Java' if lang == 'java' else 'Python'}", self._toggle_language),
+            row.add(f"Speed: {self.app.profile.speed:g}x", self._cycle_speed),
             row.add("Switch Profile", self._switch),
         ]
 
@@ -43,6 +45,13 @@ class ZoneMapScene(Scene):
     def _toggle_language(self):
         p = self.app.profile
         p.language = "python" if p.language == "java" else "java"
+        self.app.store.update_profile(p)
+        self._build()
+
+    def _cycle_speed(self):
+        p = self.app.profile
+        later = [s for s in SPEEDS if s > p.speed]
+        p.speed = min(later) if later else SPEEDS[0]
         self.app.store.update_profile(p)
         self._build()
 

@@ -23,7 +23,7 @@ class LessonScene(Scene):
         self.zone = zone
         self.lesson = zone.lesson
         self.model = make(self.lesson.structure, self.lesson.initial)
-        self.renderer = make_renderer(self.lesson.structure, VIZ)
+        self.renderer = make_renderer(self.lesson.structure, VIZ, app.profile.speed)
         self.renderer.sync(self.model)
         self.player = StepPlayer(app.profile.speed)
         self.code_panel = CodePanel(CODE, app.profile.language)
@@ -38,7 +38,7 @@ class LessonScene(Scene):
         beat = self.lesson.beats[self.index]
         if beat.structure:                               # a Nexus Lesson compares structures in turn
             self.model = make(beat.structure, beat.initial)
-            self.renderer = make_renderer(beat.structure, VIZ)
+            self.renderer = make_renderer(beat.structure, VIZ, self.app.profile.speed)
             self.renderer.sync(self.model)
         if beat.big_o:
             self.code_panel.show_table(complexity.table(COMPARED, {op: 1 for op in beat.big_o}), "Big-O compared")

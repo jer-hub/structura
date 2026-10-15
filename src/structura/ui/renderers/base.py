@@ -64,6 +64,7 @@ class Renderer:
         self.show_slots = False
         self.last_values: dict[int, object] = {}     # as of the last sync; models change in place
         self.ops: set[str] | None = None             # the Puzzle's ops; None allows all (Lessons)
+        self.speed = 1.0                             # the Profile's animation speed; scales element motion only
 
     # ---- what subclasses describe -------------------------------------------
     def elements(self) -> list[tuple[int, object]]:
@@ -158,19 +159,20 @@ class Renderer:
         if self.model is None:
             return
         self.clock += dt
+        move_dt = dt * self.speed
         for eid, m in list(self.motions.items()):
-            m.tween.update(dt)
+            m.tween.update(move_dt)
             self.pos[eid][0], self.pos[eid][1] = m.at()
             if m.tween.done:
                 del self.motions[eid]
         for eid, t in list(self.spawns.items()):
-            t.update(dt)
+            t.update(move_dt)
             self.pos[eid][2] = max(0.0, ease_out_back(t.progress))
             if t.done:
                 self.pos[eid][2] = 1.0
                 del self.spawns[eid]
         for eid, g in list(self.ghosts.items()):
-            g[3].update(dt)
+            g[3].update(move_dt)
             if g[3].done:
                 del self.ghosts[eid]
         for eid, s in list(self.shakes.items()):
@@ -178,7 +180,7 @@ class Renderer:
             if not s.active:
                 del self.shakes[eid]
         for t in self.cheer.values():
-            t.update(dt)
+            t.update(move_dt)
 
     # ---- effects --------------------------------------------------------------
     def shake(self, keys) -> None:
