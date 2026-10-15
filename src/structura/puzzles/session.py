@@ -74,7 +74,8 @@ class PuzzleSession:
     def expected(self) -> Move | None:
         if self.done:
             return None
-        if self.pos >= len(self.plan):
+        # An empty plan means no Reference Solution exists from here; only a used-up plan is worth redoing.
+        if self.plan and self.pos >= len(self.plan):
             self.plan, self.pos = self.goal.plan(self.state), 0
         return self.plan[self.pos] if self.plan else None
 

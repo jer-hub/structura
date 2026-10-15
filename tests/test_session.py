@@ -151,6 +151,30 @@ def test_hint_in_a_dead_end_says_undo_instead_of_a_move_and_is_free():
     assert tier == 2 and s.hints_used == 2
 
 
+def record_searches(s: PuzzleSession) -> list:
+    """Each time the session searches for a Reference Solution, append the state searched from."""
+    searched = []
+    search = s.goal.plan
+    def recording(st):
+        searched.append(st)
+        return search(st)
+    s.goal.plan = recording
+    return searched
+
+
+def test_staying_in_a_dead_end_does_not_search_again():
+    """The search can take seconds on a big board, so asking again must not repeat it."""
+    s = PuzzleSession(marsh())
+    s.try_move(Move.of("delete", 0))
+    searched = record_searches(s)
+    for _ in range(3):
+        assert s.dead_end and s.expected() is None
+        s.hint()
+    assert searched == []
+    s.undo()
+    assert not s.dead_end and s.expected() is not None
+
+
 # ---- quiz answers ------------------------------------------------------------------
 def test_wrong_answer_is_a_glitch_then_right_answer_finishes():
     p = puzzle(type="trace", structure="stack", initial=[], ops=[],
