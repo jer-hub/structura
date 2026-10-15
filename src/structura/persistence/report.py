@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -66,15 +67,24 @@ def verify(report: object) -> bool:
 
 
 def default_folder() -> Path:
-    folder = Path.home() / "Documents" / "Structura Reports"
-    folder.mkdir(parents=True, exist_ok=True)
-    return folder
+    return Path.home() / "Documents" / "Structura Reports"
 
 
-def export(profile: Profile, results: dict[str, Result], zones: list[Zone], folder: Path | None = None) -> Path:
+def export(profile: Profile, results: dict[str, Result], zones: list[Zone], folder: Path) -> Path:
+    """Write the report into `folder`, creating it if needed.
+
+    Raises OSError if it can't be written, leaving no partial report a student might upload.
+    """
     report = build(profile, results, zones)
     safe_id = "".join(c for c in profile.student_id if c.isalnum() or c in "-_") or "student"
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
-    path = (folder or default_folder()) / f"structura_{safe_id}_{stamp}.json"
-    path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"structura_{safe_id}_{stamp}.json"
+    partial = path.with_suffix(".partial")
+    try:
+        partial.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        os.replace(partial, path)
+    except OSError:
+        partial.unlink(missing_ok=True)
+        raise
     return path

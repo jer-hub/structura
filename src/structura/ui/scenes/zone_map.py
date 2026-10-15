@@ -10,11 +10,26 @@ from ..widgets import Button, Row
 
 MAP = pygame.Rect(40, 110, SIZE[0] - 80, SIZE[1] - 210)
 SPEEDS = (0.5, 1.0, 2.0)
+ACTIONS_Y = SIZE[1] - 72      # the row of profile actions; messages sit just above it
+
+
+def _reason(error: OSError) -> str:
+    """Why a file couldn't be written, in words a student can pass on."""
+    if isinstance(error, PermissionError):
+        return "the folder is locked, or this PC doesn't allow saving there."
+    if isinstance(error, (FileExistsError, NotADirectoryError)):
+        return "something that isn't a folder is in the way."
+    if isinstance(error, FileNotFoundError):
+        return "that folder or drive isn't available, or its name is too long."
+    if error.strerror:
+        return f"{error.strerror}."
+    return "something went wrong while saving the file."
 
 
 class ZoneMapScene(Scene):
     def __init__(self, app):
         super().__init__(app)
+        self.message_colour = theme.GOOD
         self._build()
 
     def _pos(self, zone):
@@ -29,7 +44,7 @@ class ZoneMapScene(Scene):
             open_ = progress.zone_unlocked(z, self.app.zones, results)
             self.buttons.append(Button(z.name, pygame.Rect(x - w // 2, y - 24, w, 48),
                                        lambda z=z: self.app.open_zone(z), enabled=open_, accent=z.color))
-        row = Row(40, SIZE[1] - 72)
+        row = Row(40, ACTIONS_Y)
         lang = self.app.profile.language
         self.buttons += [
             row.add("Export Progress Report", self._export, accent=theme.GOOD),
@@ -40,8 +55,16 @@ class ZoneMapScene(Scene):
         ]
 
     def _export(self):
-        path = report.export(self.app.profile, self.app.results(), self.app.zones, self.app.report_dir)
+        folder = self.app.report_dir or report.default_folder()
+        try:
+            path = report.export(self.app.profile, self.app.results(), self.app.zones, folder)
+        except OSError as e:
+            self.message = (f"Your Progress Report couldn't be saved in {folder}: {_reason(e)} "
+                            "Try again, or show this message to your instructor.")
+            self.message_colour = theme.BAD
+            return
         self.message = f"Saved {path}. Attach this file to your Google Classroom assignment."
+        self.message_colour = theme.GOOD
 
     def _toggle_language(self):
         p = self.app.profile
@@ -86,4 +109,6 @@ class ZoneMapScene(Scene):
                 theme.draw_text(surf, "locked", (x, y + 30), 17, theme.DISABLED, center=True)
         theme.draw_text(surf, "More Zones open as they are built.", (SIZE[0] - 40 - 320, 68), 17, theme.MUTED)
         if self.message:
-            theme.draw_text(surf, self.message, (40, SIZE[1] - 118), 17, theme.GOOD, width=SIZE[0] - 80)
+            f, width = theme.font(17), SIZE[0] - 80
+            height = len(theme.wrap(self.message, f, width)) * f.get_linesize()
+            theme.draw_text(surf, self.message, (40, ACTIONS_Y - 10 - height), 17, self.message_colour, width=width)

@@ -1,4 +1,8 @@
+import errno
 import json
+from pathlib import Path
+
+import pytest
 
 from structura.persistence import report
 from structura.persistence.store import Store
@@ -37,6 +41,22 @@ def exported_report(tmp_path) -> dict:
     s = Store(tmp_path / "t.db")
     p = s.create_profile("Ana", "2024-001")
     return json.loads(report.export(p, s.results(p.id), [zone()], folder=tmp_path).read_text())
+
+
+def test_a_report_that_fails_partway_through_saving_leaves_nothing_behind(tmp_path, monkeypatch):
+    s = Store(tmp_path / "t.db")
+    p = s.create_profile("Ana", "2024-001")
+    folder = tmp_path / "reports"
+    real_write = Path.write_text
+
+    def disk_fills_up(path, text, **kwargs):
+        real_write(path, text[: len(text) // 2], **kwargs)
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(Path, "write_text", disk_fills_up)
+    with pytest.raises(OSError):
+        report.export(p, s.results(p.id), [zone()], folder)
+    assert list(folder.iterdir()) == []
 
 
 def test_a_report_without_a_text_signature_is_not_verified(tmp_path):

@@ -83,7 +83,7 @@ def test_player_data_and_reports_are_written_outside_the_build(frozen, tmp_path,
     monkeypatch.setenv("HOME", str(home))
     store = Store()
     profile = store.create_profile("Ana Peña", "2024-0001")
-    path = report.export(profile, store.results(profile.id), load_all())
+    path = report.export(profile, store.results(profile.id), load_all(), report.default_folder())
     store.close()
     assert store.path.is_relative_to(home / "AppData" / "Roaming" / "Structura")
     assert path.is_relative_to(home / "Documents" / "Structura Reports")

@@ -235,6 +235,29 @@ def test_disruption_is_announced(app):
     assert any("Shuffler flips" in m for m in announced)
 
 
+# ---- exporting a Progress Report -------------------------------------------
+def test_a_failed_export_is_explained_and_the_game_carries_on(app, tmp_path):
+    blocked = tmp_path / "Structura Reports"
+    blocked.write_text("a file where the folder should be", encoding="utf-8")
+    app.report_dir = blocked
+    new_profile(app)
+    click(app, "Export Progress Report")
+    assert isinstance(app.scene, ZoneMapScene)
+    assert "couldn't be saved" in app.scene.message and str(blocked) in app.scene.message
+    assert app.scene.message_colour == theme.BAD
+    app.draw()
+
+    blocked.unlink()
+    click(app, "Export Progress Report")
+    saved = list(blocked.glob("structura_2024-0001_*.json"))
+    assert len(saved) == 1
+    assert str(saved[0]) in app.scene.message and "Google Classroom" in app.scene.message
+    assert app.scene.message_colour == theme.GOOD
+
+    click(app, "The Array Plains")
+    assert isinstance(app.scene, ZoneScene)
+
+
 # ---- animation speed ------------------------------------------------------
 def speed(app):
     """The Zone Map's animation speed button label."""
