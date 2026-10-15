@@ -20,6 +20,8 @@ BUTTON_OPS = {"push": True, "pop": False, "enqueue": True, "dequeue": False}
 
 
 class PuzzleScene(Scene):
+    watching = False                     # True while the Reference Solution plays itself
+
     def __init__(self, app, zone, puzzle):
         super().__init__(app)
         self.zone, self.puzzle = zone, puzzle
@@ -83,7 +85,7 @@ class PuzzleScene(Scene):
             row = rows[0] if i < 2 else rows[1]
             hinted = self.hint_move == Move.of("answer", i)
             out.append(row.add(option, lambda i=i: self._attempt(Move.of("answer", i)), width=360,
-                               enabled=not s.done, selected=s.done and i == goal.correct,
+                               enabled=not s.done and not self.watching, selected=s.done and i == goal.correct,
                                accent=theme.ACTIVE if hinted else (theme.GOOD if s.done else self.zone.color)))
         return out
 

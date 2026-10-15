@@ -213,6 +213,103 @@ def test_a_lesson_animates_at_the_profile_speed(app):
     assert first_lesson_motion_time(app, "Speed: 2x") == pytest.approx(at_1x / 2, rel=0.15)
 
 
+# ---- watching the Reference Solution ------------------------------------------
+def solve_to_results(app, zone, puzzle_id):
+    puzzle = next(p for p in zone.puzzles if p.id == puzzle_id)
+    app.open_puzzle(zone, puzzle)
+    for move in reference_moves(puzzle):
+        play(app, move)
+    click(app, "See Results")
+    return puzzle
+
+
+def watch(app, dt=0.05, limit=60.0):
+    """Run the replay until it offers Back to Results. Returns (seconds, every
+    (Moves made, message) pair shown along the way)."""
+    scene, t, shown = app.scene, 0.0, []
+    while "Back to Results" not in labels(app):
+        app.update(dt)
+        t += dt
+        shown.append((scene.session.moves, scene.message))
+        assert t < limit, "the replay never finished"
+    return t, shown
+
+
+def test_watching_the_reference_solution_ends_solved_and_records_nothing(app):
+    new_profile(app)
+    z1 = app.zones[0]
+    puzzle = solve_to_results(app, z1, "z1_p3")                             # Bubbling Up
+    results = app.scene
+    saved = app.store.results(app.profile.id)
+
+    click(app, "Watch Reference Solution")
+    scene = app.scene
+    assert isinstance(scene, PuzzleScene) and scene.session.moves == 0
+    assert scene.session.model.values() == puzzle.initial
+    watch(app)
+    assert scene.session.model.values() == sorted(puzzle.initial)
+    assert scene.session.moves == len(reference_moves(puzzle))
+
+    click(app, "Back to Results")
+    assert app.scene is results
+    assert app.store.results(app.profile.id) == saved, "a replay never records a result"
+
+
+def test_the_player_only_watches_a_replay_and_can_leave_partway(app):
+    new_profile(app)
+    z1 = app.zones[0]
+    solve_to_results(app, z1, "z1_p3")                                      # Bubbling Up
+    results = app.scene
+    click(app, "Watch Reference Solution")
+    scene = app.scene
+    assert labels(app) == ["Leave Replay"], "no Swap, Undo or Hint while watching"
+    for _ in range(3):
+        click_at(app, target(app, "node", 0))
+    assert scene.selected == [] and scene.session.glitches == 0
+    for _ in range(30):
+        app.update(0.05)
+    assert 0 < scene.session.moves < len(reference_moves(scene.puzzle)), "the replay moves on by itself"
+    click(app, "Leave Replay")
+    assert app.scene is results
+
+
+def test_a_replay_announces_each_disruption_after_the_same_move_as_play(app):
+    new_profile(app)
+    z1 = app.zones[0]
+    boss = solve_to_results(app, z1, z1.puzzles[-1].id)                     # the Array Plains Boss
+    click(app, "Watch Reference Solution")
+    _, shown = watch(app)
+    for d in boss.disruptions:
+        first = next(moves for moves, message in shown if d.say in message)
+        assert first == d.after, f"{d.say!r} fired after Move {first}, not {d.after}"
+    assert app.scene.session.done
+
+
+def test_a_replay_plays_at_the_profile_speed(app):
+    new_profile(app)
+    z1 = app.zones[0]
+    solve_to_results(app, z1, "z1_p3")                                      # Bubbling Up
+    click(app, "Watch Reference Solution")
+    at_1x, _ = watch(app, dt=0.01)
+    set_speed(app, "Speed: 2x")
+    solve_to_results(app, z1, "z1_p3")
+    click(app, "Watch Reference Solution")
+    at_2x, _ = watch(app, dt=0.01)
+    assert at_2x == pytest.approx(at_1x / 2, rel=0.15)
+
+
+def test_a_quiz_replay_shows_the_right_answer(app):
+    new_profile(app)
+    z3 = app.zones[2]
+    solve_to_results(app, z3, "z3_p2")                                      # a stack quiz
+    click(app, "Watch Reference Solution")
+    scene = app.scene
+    options = scene.session.goal.options
+    assert all(not button(app, o).enabled for o in options), "answers can't be clicked while watching"
+    watch(app)
+    assert scene.session.done and button(app, options[scene.session.goal.correct]).selected
+
+
 # ---- The Linked Marshes ---------------------------------------------------
 def clear_zone(app, zone):
     for p in zone.puzzles:

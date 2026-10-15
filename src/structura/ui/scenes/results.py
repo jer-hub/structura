@@ -31,6 +31,11 @@ class ResultsScene(Scene):
         if nxt:
             self.buttons.append(row.add("Next Puzzle", lambda: app.open_puzzle(zone, nxt), width=200,
                                         accent=theme.GOOD))
+        self.buttons.append(Row(SIZE[0] // 2 - 160, 625).add("Watch Reference Solution", self._watch, width=320))
+
+    def _watch(self):
+        from .replay import ReplayScene
+        self.app.go(ReplayScene(self.app, self.zone, self.puzzle, results=self))
 
     STAR_SIZE = 64
     STAR_Y = 230
