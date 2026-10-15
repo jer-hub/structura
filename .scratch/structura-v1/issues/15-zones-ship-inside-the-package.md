@@ -6,14 +6,20 @@ This is also groundwork for the Windows executable (ticket 13), which needs cont
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Running from source loads the same Zones, in the same order, as before the move
-- [ ] A test proves content lookup does not depend on the repository layout (for example, by loading Zones through the installed package's own location rather than the repo root)
-- [ ] The package declares the Zone files as package data alongside the snippets
-- [ ] No doc, test or tool still refers to the old location
-- [ ] The full suite passes, including the content contract over every shipped Puzzle
+- [x] Running from source loads the same Zones, in the same order, as before the move
+- [x] A test proves content lookup does not depend on the repository layout (for example, by loading Zones through the installed package's own location rather than the repo root)
+- [x] The package declares the Zone files as package data alongside the snippets
+- [x] No doc, test or tool still refers to the old location
+- [x] The full suite passes, including the content contract over every shipped Puzzle
 
 ## Comments
 
-- Since ticket 13, the Zone folder's location is named once in `src/structura/bundle.py` (`ZONES = Folder("content/zones", in_package=False)`). Moving the files means changing that to `Folder("structura/content/zones", in_package=True)` (or similar); the Windows build and `tests/test_packaging.py` follow it automatically.
+- Since ticket 13, the Zone folder's location is named once in `src/structura/bundle.py`; the Windows build and `tests/test_packaging.py` follow it automatically.
+- Zone files moved (`git mv`, contents unchanged) to `src/structura/content/zones/`. `bundle.Folder` paths are now relative to the package, and `pyproject.toml` declares `content/zones/*.toml` as package data.
+- Before the move: Zones `z1, z2, z3, z4, nexus_alpha`, 29 Puzzles. After: the same.
+- `tests/test_packaging.py`: one test copies the package outside the repository and loads Zones and snippets from that copy in a fresh Python process; another checks every shipped data file matches a package-data pattern.
+- Checked by hand: a wheel built with `pip wheel . --no-deps` holds all 5 Zone files and all 44 snippets; the rebuilt `dist\Structura.exe` holds the 5 Zone files at `structura\content\zones`.
+- Code review caught that my first "without the repository" tests patched a value lookup no longer read, so they couldn't fail; replaced with the copied-package test above.
+- Draft Zone files in `.scratch/structura-v1/content-drafts/` now say to move into `src/structura/content/zones/`.

@@ -11,7 +11,7 @@ py -m venv .venv
 .venv\Scripts\pip install -e ".[build]"
 ```
 
-Then, every time you want a new build (for example after changing a Zone file in `content/zones/`):
+Then, every time you want a new build (for example after changing a Zone file in `src/structura/content/zones/`):
 
 ```powershell
 .venv\Scripts\pyinstaller --noconfirm structura.spec

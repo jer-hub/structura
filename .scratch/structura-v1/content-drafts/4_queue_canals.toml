@@ -1,4 +1,4 @@
-# DRAFT for ticket 04. Not validated: move into content/zones/ and run the content contract.
+# DRAFT for ticket 04. Not validated: move into src/structura/content/zones/ and run the content contract.
 [zone]
 id = "z4"
 name = "The Queue Canals"

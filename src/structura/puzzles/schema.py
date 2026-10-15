@@ -1,4 +1,4 @@
-"""Zone and Puzzle definitions, loaded from content/zones/*.toml.
+"""Zone and Puzzle definitions, loaded from src/structura/content/zones/*.toml.
 
 A Puzzle file states only a starting state and a goal (ADR 0001). Anything that
 counts as an answer is worked out by the models in goals.py.

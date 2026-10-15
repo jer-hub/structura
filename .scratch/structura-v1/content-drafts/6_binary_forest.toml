@@ -1,5 +1,5 @@
 # DRAFT for tickets 06 (Puzzles 1-6 and 9) and 07 (Puzzles 7, 8 and the Boss).
-# Not validated: move into content/zones/ and run the content contract.
+# Not validated: move into src/structura/content/zones/ and run the content contract.
 [zone]
 id = "z5"
 name = "The Binary Forest"

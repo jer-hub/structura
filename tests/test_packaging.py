@@ -1,6 +1,11 @@
 """The Windows build: what it bundles is what the game looks up, and player data stays outside it."""
+import os
 import shutil
+import subprocess
 import sys
+import tomllib
+from fnmatch import fnmatch
+from pathlib import Path
 
 import pytest
 
@@ -9,6 +14,9 @@ from structura.codemirror import library
 from structura.persistence import report
 from structura.persistence.store import Store
 from structura.puzzles.schema import load_all
+
+REPO = Path(__file__).resolve().parents[1]
+
 
 @pytest.fixture
 def frozen(tmp_path, monkeypatch):
@@ -29,7 +37,7 @@ def test_the_build_bundles_every_zone(frozen):
 
 
 def test_the_build_file_bundles_what_the_game_looks_up():
-    spec = (bundle.REPO / "structura.spec").read_text(encoding="utf-8")
+    spec = (REPO / "structura.spec").read_text(encoding="utf-8")
     assert "datas=bundle.pyinstaller_datas()" in spec
 
 
@@ -39,13 +47,26 @@ def test_the_build_bundles_the_code_mirror_snippets(frozen):
         assert snippet and snippet.lines, language
 
 
-def test_an_installed_copy_finds_its_snippets_without_the_repository(monkeypatch, tmp_path):
-    monkeypatch.setattr(bundle, "REPO", tmp_path / "no repository here")
-    library.load.cache_clear()
-    try:
-        assert library.load("binary_search", "python")
-    finally:
-        library.load.cache_clear()
+def test_an_installed_copy_finds_its_zones_and_snippets_without_the_repository(tmp_path):
+    site = tmp_path / "site-packages"
+    shutil.copytree(bundle.PACKAGE, site / "structura", ignore=shutil.ignore_patterns("__pycache__"))
+    check = ("from structura.puzzles.schema import load_all; from structura.codemirror import library; "
+             "print([z.id for z in load_all()], sum(len(z.puzzles) for z in load_all()), "
+             "bool(library.load('binary_search', 'java')))")
+    out = subprocess.run([sys.executable, "-c", check], cwd=tmp_path, env={**os.environ, "PYTHONPATH": str(site)},
+                         capture_output=True, text=True, check=True).stdout.strip()
+    zones = load_all(bundle.ZONES.source())
+    assert out == f"{[z.id for z in zones]} {sum(len(z.puzzles) for z in zones)} True"
+
+
+def test_the_package_declares_every_data_file_it_ships():
+    with open(REPO / "pyproject.toml", "rb") as f:
+        patterns = tomllib.load(f)["tool"]["setuptools"]["package-data"]["structura"]
+    for folder in bundle.FOLDERS:
+        for file in folder.source().rglob("*"):
+            if file.is_file():
+                relative = file.relative_to(bundle.PACKAGE).as_posix()
+                assert any(fnmatch(relative, p) for p in patterns), relative
 
 
 def test_lookup_reads_from_the_bundle_not_the_source_tree(frozen):

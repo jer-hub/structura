@@ -6,20 +6,24 @@ from dataclasses import dataclass
 from pathlib import Path
 
 PACKAGE = Path(__file__).resolve().parent
-REPO = PACKAGE.parents[1]
 
 
 @dataclass(frozen=True)
 class Folder:
-    dest: str           # where the Windows build puts it
-    in_package: bool    # inside the structura package, so an installed copy has it too
+    """A data folder inside the structura package."""
+    path: str
 
     def source(self) -> Path:
-        return (PACKAGE.parent if self.in_package else REPO) / self.dest
+        return PACKAGE / self.path
+
+    @property
+    def dest(self) -> str:
+        """Where the Windows build puts it, relative to the build's root."""
+        return f"structura/{self.path}"
 
 
-ZONES = Folder("content/zones", in_package=False)
-SNIPPETS = Folder("structura/codemirror/snippets", in_package=True)
+ZONES = Folder("content/zones")
+SNIPPETS = Folder("codemirror/snippets")
 FOLDERS = (ZONES, SNIPPETS)
 
 
