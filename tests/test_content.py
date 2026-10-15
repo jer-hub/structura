@@ -7,6 +7,7 @@ import pytest
 
 from structura.codemirror import library
 from structura.models import complexity, make
+from structura.puzzles.goals import TRAY_OPS
 from structura.puzzles.hints import lint
 from structura.puzzles.schema import ContentError, load_all, load_zone
 from structura.puzzles.session import PuzzleSession, reference_moves
@@ -65,6 +66,27 @@ def test_disruptions_never_make_a_winnable_puzzle_unwinnable(puzzle):
             out = s.try_move(move)
             if out.disruption and not calm.dead_end:
                 assert not s.dead_end, f"seed {seed}: {out.disruption!r} after {move} left no way to finish"
+
+
+@pytest.mark.parametrize("puzzle", [p for p in PUZZLES if p.disruptions], ids=lambda p: p.id)
+def test_no_shortcut_finishes_before_the_first_disruption(puzzle):
+    """A Disruption a quick player never meets teaches nothing. The search stops at
+    the first Disruption: going further is too slow for the swap Bosses."""
+    s = PuzzleSession(puzzle)
+    frontier = [s.state]
+    for depth in range(1, min(d.after for d in puzzle.disruptions) + 1):
+        seen = {}
+        for st in frontier:
+            for m in st.model.candidate_moves(st.tray[0] if st.tray else None):
+                if m.op not in puzzle.ops or st.model.why_illegal(m):
+                    continue
+                nxt = st.copy()
+                nxt.model.apply(m)
+                if m.op in TRAY_OPS:
+                    nxt.tray.pop(0)
+                assert not s.goal.done(nxt), f"finished in {depth} Moves, before any Disruption"
+                seen.setdefault((nxt.model.key(), len(nxt.tray)), nxt)
+        frontier = list(seen.values())
 
 
 def test_linked_marshes_follow_the_array_plains():
@@ -134,6 +156,16 @@ def test_binary_forest_follows_nexus_alpha():
     assert children == {0, 1, 2}
     orders = {p.goal.get("order") for p in z5.puzzles if p.goal["kind"] == "traverse"}
     assert orders == {"preorder", "inorder", "postorder"}, "spec story 65"
+
+
+def test_binary_forest_rotations_and_the_colossus():
+    """Spec stories 66-68."""
+    z5 = next(z for z in ZONES if z.id == "z5")
+    rotations = {p.id: len(reference_moves(p)) for p in z5.puzzles if p.goal["kind"] == "balanced"}
+    assert rotations["z5_p7"] == 1 and rotations["z5_p8"] == 2, "a single and a double rotation"
+    boss = z5.puzzles[-1]
+    assert boss.stage == "boss" and boss.goal["kind"] == "balanced" and boss.disruptions
+    assert any(b.do and b.do[0].startswith("rotate") for b in z5.lesson.beats), "the Lesson shows a rotation"
 
 
 @pytest.mark.parametrize("puzzle", [p for p in PUZZLES if p.goal["kind"] == "select"], ids=lambda p: p.id)

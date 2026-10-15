@@ -29,6 +29,11 @@ say = "Deleting a node with two children: replace it with its in-order successor
 do = ["insert 9", "insert 14", "delete 10"]
 code = "bst_delete"
 
+[[lesson.beat]]
+say = "Rotations restructure a tree without breaking the ordering. They're how trees stay balanced."
+do = ["rotate_right 8"]
+code = "bst_rotate"
+
 [[puzzle]]
 id = "z5_p1"
 title = "Plant the Seeds"
@@ -137,3 +142,47 @@ ops = []
 goal = { kind = "quiz", script = ["insert 5", "insert 2", "insert 8", "insert 1", "insert 9"], ask = "preorder" }
 code = "bst_preorder"
 hints = ["Sketch the tree first.", "Pre-order: node, then the left subtree, then the right subtree."]
+
+[[puzzle]]
+id = "z5_p7"
+title = "Lopsided Sapling"
+type = "optimize"
+stage = "challenge"
+brief = "This tree leans all the way to the right. Rebalance it with rotations."
+initial = [1, 2, 3]
+ops = ["rotate_left", "rotate_right"]
+goal = { kind = "balanced" }
+code = "bst_rotate"
+hints = ["A left rotation lifts a node's right child into its place.", "Rotate at the root."]
+
+[[puzzle]]
+id = "z5_p8"
+title = "Zig-Zag"
+type = "optimize"
+stage = "challenge"
+brief = "This tree bends left, then right. One rotation won't fix it. Rebalance it."
+initial = [30, 10, 20]
+ops = ["rotate_left", "rotate_right"]
+goal = { kind = "balanced" }
+code = "bst_rotate"
+hints = ["First straighten the bend so it leans one way only.", "Rotate the lower node first, then the root."]
+outro = "That was a double rotation: the left-right case in AVL trees."
+
+[[puzzle]]
+id = "z5_boss"
+title = "The Unbalanced Colossus"
+type = "optimize"
+stage = "boss"
+brief = "The Colossus grew in a straight line. Rebalance it so no node's subtrees differ in height by more than one."
+initial = [10, 20, 30, 40, 50, 60, 70]
+ops = ["rotate_left", "rotate_right"]
+goal = { kind = "balanced" }
+code = "bst_rotate"
+hints = ["Fix the lowest unbalanced node first, then work upward.", "Look for a node whose right side is two or more levels taller than its left."]
+intro = "The ground shakes. A tree as tall as a tower, leaning right over the forest..."
+outro = "The Colossus stands balanced and still. The Binary Forest is restored."
+
+[[puzzle.disruption]]
+after = 2
+do = ["insert 80", "insert 90"]
+say = "The Colossus grows two new branches!"

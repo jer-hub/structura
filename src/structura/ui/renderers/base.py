@@ -46,17 +46,23 @@ class Target:
     rect: pygame.Rect
 
 
-class Motion:
-    """Travel from start to end, bowed `arc` pixels off the straight line at mid-flight."""
+Arc = float | tuple[float, float]
 
-    def __init__(self, start, end, arc=0.0):
-        self.start, self.end, self.arc = start, end, arc
+
+class Motion:
+    """Travel from start to end, bowed off the straight line at mid-flight: `arc`
+    pixels downward, or by an (x, y) offset to bow sideways."""
+
+    def __init__(self, start, end, arc: Arc = 0.0):
+        self.start, self.end = start, end
+        self.bow = (0.0, arc) if isinstance(arc, (int, float)) else arc
         self.tween = Tween(TRAVEL)
 
     def at(self):
         t = ease_in_out_sine(self.tween.progress)
-        x = lerp(self.start[0], self.end[0], t)
-        y = lerp(self.start[1], self.end[1], t) + self.arc * math.sin(math.pi * t)
+        lift = math.sin(math.pi * t)
+        x = lerp(self.start[0], self.end[0], t) + self.bow[0] * lift
+        y = lerp(self.start[1], self.end[1], t) + self.bow[1] * lift
         return x, y
 
 
@@ -107,8 +113,8 @@ class Renderer:
     def on_step(self, step: Step | None) -> None:
         """Called every frame with the Step being played, for markers that follow it."""
 
-    def arcs(self, moving: dict[int, tuple]) -> dict[int, float]:
-        """How far each moving element bows off a straight path; straight by default."""
+    def arcs(self, moving: dict[int, tuple]) -> dict[int, Arc]:
+        """How each moving element bows off a straight path (see Motion); straight by default."""
         return {}
 
     def draw_under(self, surf, hint_slot, pulse: float, offset) -> None:

@@ -12,7 +12,8 @@ Tree-specific motion, once a scene's StepPlayer drives the renderer:
   * a new node stays hidden while its insert compares down the path, and grows
     in when the "place" Step plays;
   * after a delete the old tree stays on the board, so the comparison path and
-    the successor light up on it, until the Step that removes the node plays.
+    the successor light up on it, until the Step that removes the node plays;
+  * nodes that change level (a rotation) swing sideways along arcs.
 Either change shows at once when no Steps are playing. The renderer draws a
 copy of the model taken at sync, so it can keep showing the old tree.
 """
@@ -130,6 +131,19 @@ class BSTRenderer(Renderer):
         return x + w / 2, y + w / 2
 
     # ---- motion -------------------------------------------------------------------
+    def arcs(self, moving):
+        """In a rotation, nodes going up and nodes going down swing sideways, away from
+        each other, like a wheel turning; a rotation keeps every column, so a straight
+        path would only slide. A delete only lifts nodes, so it moves them straight."""
+        risers = [c[0] for c, t in moving.values() if t[1] < c[1] - 0.5]
+        fallers = [c[0] for c, t in moving.values() if t[1] > c[1] + 0.5]
+        if not (risers and fallers):
+            return {}
+        centre = (sum(risers) / len(risers) + sum(fallers) / len(fallers)) / 2
+        swing = 0.9 * self.element_size()
+        return {eid: (swing if c[0] >= centre else -swing, 0.0)
+                for eid, (c, t) in moving.items() if abs(t[1] - c[1]) > 0.5}
+
     def enter(self, eid, target):
         self.pos[eid] = [target[0], target[1], 0.0]
         self.waiting.add(eid)

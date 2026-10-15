@@ -1,6 +1,7 @@
 """Tree-specific layout and motion: in-order position sets x, depth sets y,
 edges join parents to children, an insert walks its comparison path before
 the new node appears. Shared effects are in test_renderer_contract.py."""
+import math
 import os
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
@@ -169,6 +170,47 @@ def test_a_hidden_node_offers_no_slots_until_it_appears():
     r.update(1 / 60)
     slots = {t.key for t in r.targets() if t.kind == "slot"}
     assert (7, "left") not in slots and (7, "right") not in slots
+
+
+def test_a_rotation_swings_the_nodes_along_arcs():
+    m, r = fresh((10, 20, 30))
+    start = {v: r.center_of(v) for v in (10, 20, 30)}
+    m.apply(Move.of("rotate_left", 10))
+    r.sync(m)
+    run(r, 0.2)
+    for v in (10, 20):
+        (x0, y0), (x, y) = start[v], r.center_of(v)
+        assert y != y0, f"{v} changes level"
+        assert abs(x - x0) > 4, f"{v} bows sideways instead of sliding straight up or down"
+    assert (r.center_of(10)[0] - start[10][0]) * (r.center_of(20)[0] - start[20][0]) < 0, \
+        "the node going down and the node going up swing apart"
+    run(r, 1)
+    assert all(r.at_rest(r.eid_of(v)) for v in (10, 20, 30))
+    assert r.center_of(20)[1] < r.center_of(10)[1] == r.center_of(30)[1]
+
+
+def test_an_insert_shifts_nodes_sideways_in_a_straight_line():
+    m, r = fresh()
+    y = {v: r.center_of(v)[1] for v in (1, 3, 6, 8, 10)}
+    m.apply(Move.of("insert", 9, 10, "left"))
+    r.sync(m)
+    run(r, 0.2)
+    assert {v: r.center_of(v)[1] for v in (1, 3, 6, 8, 10)} == y
+
+
+def test_a_delete_lifts_the_child_branch_in_a_straight_line():
+    m, r = fresh((10, 20, 30))
+    start = {v: r.center_of(v) for v in (20, 30)}
+    m.apply(m.delete_move(10))
+    r.sync(m)
+    run(r, 0.2)
+    mid = {v: r.center_of(v) for v in (20, 30)}
+    run(r, 1)
+    for v in (20, 30):
+        (x0, y0), (x, y), (x1, y1) = start[v], mid[v], r.center_of(v)
+        assert y1 < y0, f"{v} rises a level"
+        off_line = abs((x - x0) * (y1 - y0) - (y - y0) * (x1 - x0)) / math.hypot(x1 - x0, y1 - y0)
+        assert off_line < 2, f"{v} bows off the straight path"
 
 
 def test_a_hidden_node_has_no_edge_until_it_appears():

@@ -22,7 +22,7 @@ from structura.ui.app import SIZE, App
 from structura.ui.renderers import RENDERERS
 from structura.ui.scenes.lesson import LessonScene
 from structura.ui.scenes.profiles import ProfileScene
-from structura.ui.scenes.puzzle import PuzzleScene
+from structura.ui.scenes.puzzle import BRIEF_SIZE, BRIEF_W, PuzzleScene
 from structura.ui.scenes.results import ResultsScene
 from structura.ui.scenes.zone import ZoneScene
 from structura.ui.scenes.zone_map import ZoneMapScene
@@ -777,6 +777,12 @@ def test_nexus_lesson_shows_each_structure_and_their_big_o(app):
     assert tables >= 1
 
 
+@pytest.mark.parametrize("puzzle", [p for z in load_all() for p in z.puzzles], ids=lambda p: p.id)
+def test_every_brief_fits_on_its_one_line(puzzle):
+    pygame.init()
+    assert theme.font(BRIEF_SIZE).size(puzzle.brief)[0] <= BRIEF_W
+
+
 # ---- The Binary Forest ---------------------------------------------------------------
 def forest(app):
     return next(z for z in app.zones if z.id == "z5")
@@ -834,6 +840,23 @@ def test_a_wrong_click_on_a_tree_trace_explains_the_rule(app, puzzle_id, wrong, 
     app.open_puzzle(z5, next(p for p in z5.puzzles if p.id == puzzle_id))
     click_at(app, target(app, "node", wrong))
     assert app.scene.session.glitches == 1 and rule in app.scene.message
+
+
+def test_rotate_buttons_need_one_node_with_the_child_it_lifts(app):
+    new_profile(app)
+    z5 = forest(app)
+    app.open_puzzle(z5, next(p for p in z5.puzzles if p.id == "z5_p7"))    # 1 -> 2 -> 3, leaning right
+    assert not button(app, "Rotate Left").enabled and not button(app, "Rotate Right").enabled
+    click_at(app, target(app, "node", 1))
+    assert button(app, "Rotate Left").enabled, "1 has a right child to lift"
+    assert not button(app, "Rotate Right").enabled, "1 has no left child"
+    click_at(app, target(app, "node", 3))
+    assert app.scene.selected == [3], "one node at a time"
+    assert not button(app, "Rotate Left").enabled and not button(app, "Rotate Right").enabled
+    click_at(app, target(app, "node", 1))
+    click(app, "Rotate Left")
+    settle(app)
+    assert app.scene.session.done and app.scene.renderer.keys() == [1, 2, 3]
 
 
 def open_heart_of_the_tree(app):

@@ -180,6 +180,9 @@ def play_bst(app, move: Move):
         click(app, "Delete")
         if replacement is not None:
             click_at(app, target(app, "node", replacement))
+    elif move.op in ("rotate_left", "rotate_right"):
+        click_at(app, target(app, "node", move.args[0]))
+        click(app, "Rotate Left" if move.op == "rotate_left" else "Rotate Right")
     else:
         raise AssertionError(move)
 

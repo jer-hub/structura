@@ -1,10 +1,11 @@
 """A Zone's page: its Lesson and its Puzzles, unlocked in order.
 
-The Lesson comes first, then the Puzzles grouped by Stage in two columns, Guided
-on the left and Challenge and Boss on the right, so the path reads top to
-bottom, left to right. Each card shows its number in that order, its Stage and
-Puzzle Type, whether it is done or locked, and its Stars; the card to play next
-is marked.
+The Lesson comes first, then the Puzzles in unlock order, poured down a column
+and on into the next when it is full, so the path reads top to bottom, left to
+right. A Stage heading sits where each Stage starts. Two wide columns are used
+when the cards fit, otherwise three narrower ones. Each card shows its number
+in that order, its Stage and Puzzle Type, whether it is done or locked, and its
+Stars; the card to play next is marked. Text too long for a card is shortened.
 """
 from __future__ import annotations
 
@@ -18,11 +19,27 @@ from ..app import SIZE, Scene
 from ..fx import mix
 from ..widgets import Button
 
-COLUMNS = (("guided",), ("challenge", "boss"))     # Stages per column; the Lesson heads the first
-CARD_W, CARD_H = 560, 62
+CARD_H = 62
 CARD_GAP = 12
 HEADING_H = 34
 TOP = 178
+MARGIN = 40
+MAP_BUTTON = pygame.Rect(MARGIN, SIZE[1] - 72, 160, 44)
+BOTTOM = MAP_BUTTON.top - CARD_GAP
+COLUMN_GAPS = {2: 80, 3: 32}                 # columns -> gap between them
+TEXT_X = 66                                  # card text starts right of the badge
+BADGE_ROW = 45                               # stars, NEXT or the lock: beside the subtitle
+LOCK_W = 44                                  # room the lock takes at the card's right
+STARS_W = 92                                 # room the Stars take at the card's right
+
+
+def _fit(text: str, font: pygame.font.Font, width: float) -> str:
+    """`text`, shortened with "…" if it is wider than `width`."""
+    if font.size(text)[0] <= width:
+        return text
+    while text and font.size(text + "…")[0] > width:
+        text = text[:-1]
+    return text.rstrip() + "…"
 
 
 @dataclass
@@ -64,20 +81,41 @@ class ZoneCard(Button):
             img = theme.font(18, bold=True).render(label, True, colour)
             surf.blit(img, img.get_rect(center=c))
 
-        title_colour = theme.TEXT if self.enabled else theme.DISABLED
-        theme.draw_text(surf, self.label, (r.x + 66, r.y + 8), 21, title_colour, bold=self.next_up)
-        sub_colour = (theme.BAD if self.boss else theme.MUTED) if self.enabled else theme.DISABLED
-        theme.draw_text(surf, self.subtitle, (r.x + 66, r.y + 35), 15, sub_colour)
+        # The marker on the right of the subtitle row: NEXT, Stars, or a lock.
+        row = r.y + BADGE_ROW
         if not self.enabled:
-            _lock(surf, (r.right - 28, r.centery), theme.MUTED)
-
-        if self.next_up:
-            img = theme.font(15, bold=True).render("NEXT", True, theme.BG)
-            pill = img.get_rect(midright=(r.right - 16, r.centery)).inflate(16, 6)
+            _lock(surf, (r.right - 28, row), theme.MUTED)
+        elif self.next_up:
+            pill = self._pill()
             pygame.draw.rect(surf, accent, pill, border_radius=pill.h // 2)
+            img = theme.font(15, bold=True).render("NEXT", True, theme.BG)
             surf.blit(img, img.get_rect(center=pill.center))
         elif self.stars is not None:
-            theme.stars(surf, (r.right - 62, r.centery), self.stars, size=20)
+            theme.stars(surf, (r.right - 50, row), self.stars, size=16)
+
+        title_colour = theme.TEXT if self.enabled else theme.DISABLED
+        title_font = theme.font(21, bold=self.next_up)
+        title = _fit(self.label, title_font, r.right - 12 - (r.x + TEXT_X))
+        theme.draw_text(surf, title, (r.x + TEXT_X, r.y + 8), 21, title_colour, bold=self.next_up)
+        sub_colour = (theme.BAD if self.boss else theme.MUTED) if self.enabled else theme.DISABLED
+        theme.draw_text(surf, self.shown_subtitle(), (r.x + TEXT_X, r.y + 35), 15, sub_colour)
+
+    def _pill(self) -> pygame.Rect:
+        img = theme.font(15, bold=True).size("NEXT")
+        return pygame.Rect((0, 0), img).inflate(16, 6).move_to(midright=(self.rect.right - 8, self.rect.y + BADGE_ROW))
+
+    def shown_subtitle(self) -> str:
+        """The subtitle as drawn: shortened to the room left of the marker."""
+        r = self.rect
+        if not self.enabled:
+            marker_left = r.right - LOCK_W
+        elif self.next_up:
+            marker_left = self._pill().x - 8
+        elif self.stars is not None:
+            marker_left = r.right - STARS_W
+        else:
+            marker_left = r.right - 12
+        return _fit(self.subtitle, theme.font(15), marker_left - (r.x + TEXT_X))
 
 
 def _lock(surf, c, colour):
@@ -94,40 +132,53 @@ class ZoneScene(Scene):
         self.results = results = app.results()
         self.next_up = self._next_up()
         self.headings: list[tuple[str, tuple[int, int]]] = []     # (Stage, where its heading goes)
-        self.buttons = [Button("Zone Map", pygame.Rect(40, SIZE[1] - 72, 160, 44), app.open_map)]
+        self.buttons = [Button("Zone Map", MAP_BUTTON.copy(), app.open_map)]
 
-        lesson = None
+        blocks: list[tuple[str | None, list[ZoneCard]]] = []     # (Stage or None for the Lesson, its cards)
         if zone.lesson:
-            lesson = ZoneCard("Lesson", pygame.Rect(0, 0, CARD_W, CARD_H), lambda: app.open_lesson(zone),
-                              accent=zone.color, subtitle="How it works", next_up=self.next_up is zone.lesson)
-        groups: dict[str, list[ZoneCard]] = {stage: [] for stage in theme.STAGE_LABEL}
+            blocks.append((None, [ZoneCard("Lesson", pygame.Rect(0, 0, 0, CARD_H), lambda: app.open_lesson(zone),
+                                           accent=zone.color, subtitle="How it works",
+                                           next_up=self.next_up is zone.lesson)]))
         for i, p in enumerate(zone.puzzles):
             r = results.get(p.id)
             unlocked = progress.puzzle_unlocked(zone, i, results)
             subtitle = f"{theme.STAGE_LABEL[p.stage]} · {p.type.title()}"
             if not unlocked:
-                subtitle += f"  ·  finish {zone.puzzles[i - 1].title} to unlock"
-            groups[p.stage].append(ZoneCard(
-                p.title, pygame.Rect(0, 0, CARD_W, CARD_H), lambda p=p: app.open_puzzle(zone, p),
+                subtitle = f"Finish {zone.puzzles[i - 1].title} first  ·  {subtitle}"
+            card = ZoneCard(
+                p.title, pygame.Rect(0, 0, 0, CARD_H), lambda p=p: app.open_puzzle(zone, p),
                 enabled=unlocked, accent=zone.color, number=i + 1, subtitle=subtitle,
-                stars=r.stars if r else None, next_up=self.next_up is p, boss=p.stage == "boss"))
+                stars=r.stars if r else None, next_up=self.next_up is p, boss=p.stage == "boss")
+            if blocks and blocks[-1][0] == p.stage:
+                blocks[-1][1].append(card)
+            else:
+                blocks.append((p.stage, [card]))
 
-        for col, stages in enumerate(COLUMNS):
-            x, y = 40 + col * (CARD_W + 80), TOP
-            if col == 0 and lesson:
-                lesson.rect.topleft = (x, y + HEADING_H)
-                self.buttons.append(lesson)
-                y += HEADING_H + CARD_H + CARD_GAP + 8
-            for stage in stages:
-                if not groups[stage]:
-                    continue
-                self.headings.append((stage, (x, y)))
-                y += HEADING_H
-                for card in groups[stage]:
-                    card.rect.topleft = (x, y)
-                    self.buttons.append(card)
-                    y += CARD_H + CARD_GAP
-                y += 8
+        for n in COLUMN_GAPS:
+            if self._pour(blocks, n) or n == max(COLUMN_GAPS):
+                break
+        self.buttons += [card for _, cards in blocks for card in cards]
+
+    def _pour(self, blocks, n: int) -> bool:
+        """Lay the cards down `n` columns; False if they run past the last one."""
+        gap = COLUMN_GAPS[n]
+        width = (SIZE[0] - 2 * MARGIN - (n - 1) * gap) // n
+        self.headings = []
+        col, y = 0, TOP
+        for stage, cards in blocks:
+            for k, card in enumerate(cards):
+                need = CARD_H + (HEADING_H if k == 0 else 0)
+                if y + need > BOTTOM and y > TOP:
+                    col, y = col + 1, TOP
+                x = MARGIN + col * (width + gap)
+                if k == 0:
+                    if stage:
+                        self.headings.append((stage, (x, y)))
+                    y += HEADING_H
+                card.rect = pygame.Rect(x, y, width, CARD_H)
+                y += CARD_H + CARD_GAP
+            y += 8
+        return col < n
 
     def _next_up(self):
         """The Lesson until a Puzzle is played, then the first unplayed Puzzle; None when cleared."""

@@ -15,8 +15,12 @@ from ..widgets import Row
 
 VIZ = pygame.Rect(30, 110, 820, 400)
 CODE = pygame.Rect(870, 110, 380, 400)
+BRIEF_W, BRIEF_SIZE = 840, 17       # one line under the title; a second would hide behind the board
 # Ops made with a button rather than on the board, and whether they take the next Tray value.
 BUTTON_OPS = {"push": True, "pop": False, "enqueue": True, "dequeue": False}
+# Ops made with a button on the one selected element.
+ROTATIONS = {"rotate_left": "Rotate Left", "rotate_right": "Rotate Right"}
+SELECTING = {"swap", "delete", *ROTATIONS}
 
 
 class PuzzleScene(Scene):
@@ -57,6 +61,12 @@ class PuzzleScene(Scene):
         if "delete" in self.puzzle.ops:
             ready = len(self.selected) == 1 and self.replacing is None
             self.buttons.append(row.add("Delete", self._delete, enabled=ready and not s.done, accent=theme.BAD))
+        for op, label in ROTATIONS.items():
+            if op in self.puzzle.ops:
+                move = Move.of(op, self.selected[0]) if len(self.selected) == 1 else None
+                ready = move is not None and not s.model.why_illegal(move)
+                self.buttons.append(row.add(label, lambda m=move: self._attempt(m), enabled=ready and not s.done,
+                                            accent=self.zone.color))
         for op, takes_tray in BUTTON_OPS.items():
             if op in self.puzzle.ops:
                 move = Move.of(op, s.tray_next) if takes_tray else Move.of(op)
@@ -99,7 +109,7 @@ class PuzzleScene(Scene):
         self.selected, self.replacing = [], None
         if not out.ok:
             self.glitch_flash = 0.6
-            cells = [a for a in move.args[:2] if isinstance(a, int)] if move.op in ("swap", "visit", "delete") else []
+            cells = [a for a in move.args[:2] if isinstance(a, int)] if move.op in SELECTING | {"visit"} else []
             if cells:
                 self.renderer.shake(cells)
             else:
@@ -188,7 +198,7 @@ class PuzzleScene(Scene):
                 self._replace_with(t.key)
             elif "visit" in self.puzzle.ops:
                 self._attempt(Move.of("visit", t.key))
-            elif "swap" in self.puzzle.ops or "delete" in self.puzzle.ops:
+            elif SELECTING & set(self.puzzle.ops):
                 if t.key in self.selected:
                     self.selected.remove(t.key)
                 else:
@@ -216,7 +226,7 @@ class PuzzleScene(Scene):
             return m.args
         if m.op == "delete" and self.replacing is not None and m.args[0] == self.replacing:
             return (m.args[1],)
-        if m.op in ("visit", "delete"):
+        if m.op in ("visit", "delete", *ROTATIONS):
             return (m.args[0],)
         return ()
 
@@ -242,7 +252,7 @@ class PuzzleScene(Scene):
         theme.draw_text(surf, p.title, (30, 36), 30, bold=True)
         theme.draw_text(surf, f"Moves {s.moves}   Par {reference_count(p)}   Glitches {s.glitches}   "
                               f"Hints {s.hints_used}", (SIZE[0] - 30 - 420, 46), 18, theme.MUTED)
-        theme.draw_text(surf, p.brief, (30, 78), 17, theme.MUTED, width=840)
+        theme.draw_text(surf, p.brief, (30, 78), BRIEF_SIZE, theme.MUTED, width=BRIEF_W)
 
         edge = theme.BAD if self.glitch_flash > 0 or self.board_shake.active else theme.PANEL_EDGE
         theme.panel(surf, VIZ.move(*self.board_shake.offset()), edge=edge)
