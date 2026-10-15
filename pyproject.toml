@@ -10,6 +10,7 @@ dev = ["pytest>=8"]
 
 [project.scripts]
 structura = "structura.__main__:main"
+structura-combine = "structura.combine:main"
 
 [build-system]
 requires = ["setuptools>=68"]

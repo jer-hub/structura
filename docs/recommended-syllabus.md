@@ -2,7 +2,7 @@
 
 An 18-week semester with Prelim, Midterm and Final exams. It fits the BSIT DSA course (commonly CC 104 under CHED CMO No. 25, s. 2015). Check it against your approved course syllabus before adopting it. The course teaches Python and Java side by side, and every lab is done in both.
 
-**How Structura fits in:** students play the Zone the same week the topic is lectured, then do the lab. Instructors collect Progress Reports through Google Classroom at each exam period.
+**How Structura fits in:** students play the Zone the same week the topic is lectured, then do the lab. Instructors collect Progress Reports through Google Classroom at each exam period and [combine them into one spreadsheet](combining-progress-reports.md).
 
 | Week | Topic | Key ideas | Structura | Lab (Python + Java) |
 |---|---|---|---|---|
