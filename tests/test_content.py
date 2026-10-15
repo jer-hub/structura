@@ -116,6 +116,26 @@ def test_nexus_alpha_follows_the_queue_canals():
     assert boss.stage == "boss" and boss.structure == "array" and len(boss.disruptions) == 2
 
 
+def test_binary_forest_follows_nexus_alpha():
+    z5 = next(z for z in ZONES if z.id == "z5")
+    assert z5.name == "The Binary Forest" and z5.structure == "bst" and z5.requires == ["nexus_alpha"]
+    assert ZONES.index(z5) == ZONES.index(next(z for z in ZONES if z.id == "nexus_alpha")) + 1
+    kinds = {p.goal["kind"] for p in z5.puzzles}
+    assert {"script", "search", "traverse", "quiz"} <= kinds
+
+    children = set()                              # spec story 63: all three deletion cases
+    for p in (p for p in z5.puzzles if p.goal["kind"] == "script"):
+        model = make(p.structure, p.initial)
+        for m in reference_moves(p):
+            if m.op == "delete":
+                n = model.nodes[model.find(m.args[0])]
+                children.add((n.left is not None) + (n.right is not None))
+            model.apply(m)
+    assert children == {0, 1, 2}
+    orders = {p.goal.get("order") for p in z5.puzzles if p.goal["kind"] == "traverse"}
+    assert orders == {"preorder", "inorder", "postorder"}, "spec story 65"
+
+
 @pytest.mark.parametrize("puzzle", [p for p in PUZZLES if p.goal["kind"] == "select"], ids=lambda p: p.id)
 def test_every_select_scenario_has_a_unique_best_answer(puzzle):
     goal = PuzzleSession(puzzle).goal

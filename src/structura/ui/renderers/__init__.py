@@ -6,6 +6,7 @@ import pygame
 
 from .array import ArrayRenderer
 from .base import Renderer, Target
+from .bst import BSTRenderer
 from .linked_list import LinkedListRenderer
 from .queue import QueueRenderer
 from .stack import StackRenderer
@@ -17,6 +18,7 @@ RENDERERS: dict[str, type[Renderer]] = {
     "linked_list": LinkedListRenderer,
     "stack": StackRenderer,
     "queue": QueueRenderer,
+    "bst": BSTRenderer,
 }
 
 

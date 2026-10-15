@@ -92,6 +92,18 @@ class Model(ABC):
     def parse(self, text: str) -> list[Move]:
         """Turn script text such as "insert 5" into the textbook Moves for it."""
 
+    def alternatives(self, text: str) -> list[list[Move]]:
+        """Every textbook way to carry out a script line; parse() is the first."""
+        return [self.parse(text)]
+
+    def needs_replacement(self, key) -> bool:
+        """Whether deleting the element at `key` needs the player to pick what takes its place."""
+        return False
+
+    def delete_move(self, key, replacement=None) -> Move:
+        """The Move that deletes the element at `key`."""
+        return Move.of("delete", key)
+
     def candidate_moves(self, tray_next) -> Iterable[Move]:
         """Every Move worth trying from this state; used by the search solver."""
         return ()

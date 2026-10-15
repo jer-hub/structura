@@ -188,3 +188,29 @@ def test_wrong_answer_is_a_glitch_then_right_answer_finishes():
     out = s.try_move(Move.of("answer", right))
     assert out.ok and out.done
     assert s.glitches == 1 and s.moves == 1 and s.stars() == 1      # (1 + 1) / 1 = 2.0x
+
+
+# ---- BST deletion with two children ---------------------------------------------------
+def heart() -> Puzzle:
+    return puzzle(type="build", structure="bst", initial=[8, 3, 10, 1, 6, 4, 7], ops=["delete"],
+                  goal={"kind": "script", "script": ["delete 3"]})
+
+
+def test_two_children_delete_with_the_successor_finishes():
+    s = PuzzleSession(heart())
+    assert list(reference_moves(heart())) == [Move.of("delete", 3, 4)]
+    out = s.try_move(Move.of("delete", 3, 4))
+    assert out.done and s.glitches == 0 and s.stars() == 3
+
+
+def test_two_children_delete_with_the_predecessor_also_finishes():
+    s = PuzzleSession(heart())
+    out = s.try_move(Move.of("delete", 3, 1))
+    assert out.done and s.glitches == 0 and s.stars() == 3
+
+
+def test_any_other_replacement_is_a_glitch_that_explains_the_successor():
+    s = PuzzleSession(heart())
+    out = s.try_move(Move.of("delete", 3, 7))
+    assert not out.ok and "in-order successor" in out.glitch
+    assert s.glitches == 1 and s.model.order("inorder") == [1, 3, 4, 6, 7, 8, 10]

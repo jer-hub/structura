@@ -336,6 +336,21 @@ class BSTModel(Model):
             return [Move.of("visit", self.nodes[i].value) for i in self.search_path(v)]
         return [Move.of(op, v)]
 
+    def needs_replacement(self, key) -> bool:
+        n = self.nodes[self.find(key)]
+        return n.left is not None and n.right is not None
+
+    def delete_move(self, key, replacement=None) -> Move:
+        return Move.of("delete", key, replacement)
+
+    def alternatives(self, text: str) -> list[list[Move]]:
+        moves = self.parse(text)
+        if moves[0].op != "delete" or moves[0].args[1] is None:
+            return [moves]
+        v = moves[0].args[0]
+        predecessor = self.nodes[self.predecessor(self.find(v))].value
+        return [moves, [Move.of("delete", v, predecessor)]]
+
     def candidate_moves(self, tray_next):
         if tray_next is not None:
             yield from self.parse(f"insert {tray_next}")

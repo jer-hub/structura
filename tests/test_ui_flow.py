@@ -743,3 +743,131 @@ def test_nexus_lesson_shows_each_structure_and_their_big_o(app):
         click(app, "Next")
     assert set(shown) == {RENDERERS[s] for s in ("array", "linked_list", "stack", "queue")}
     assert tables >= 1
+
+
+# ---- The Binary Forest ---------------------------------------------------------------
+def forest(app):
+    return next(z for z in app.zones if z.id == "z5")
+
+
+def test_binary_forest_play_through(app):
+    new_profile(app)
+    z5 = forest(app)
+    for z in app.zones[:4]:
+        clear_zone(app, z)
+    app.open_map()
+    assert not button(app, "The Binary Forest").enabled, "locked until Nexus Alpha is cleared"
+    clear_zone(app, nexus(app))
+    app.open_map()
+    click(app, "The Binary Forest")
+
+    click(app, "Lesson")
+    while not any(b.label == "Finish Lesson" for b in app.scene.buttons):
+        click(app, "Next")
+        settle(app)
+    click(app, "Finish Lesson")
+
+    for puzzle in z5.puzzles:
+        click(app, puzzle.title)
+        scene = app.scene
+        for move in reference_moves(puzzle):
+            play(app, move)
+        assert scene.session.done, puzzle.id
+        click(app, "See Results")
+        assert app.scene.stars == 3, puzzle.id
+        click(app, "Back to Zone")
+    assert {p.id for p in z5.puzzles} <= set(app.store.results(app.profile.id))
+
+
+def test_the_forest_lesson_deletes_on_the_board_only_after_the_comparisons(app):
+    new_profile(app)
+    app.open_zone(forest(app))
+    click(app, "Lesson")
+    while "delete 10" not in app.scene.lesson.beats[app.scene.index].do:
+        settle(app)
+        click(app, "Next")
+    assert 10 in app.scene.renderer.keys(), "the old tree stays while 10 is compared and replaced"
+    settle(app)
+    assert app.scene.renderer.keys() == [3, 6, 8, 9, 14]
+
+
+@pytest.mark.parametrize("puzzle_id, wrong, rule", [
+    ("z5_p2", 3, "go left if the value is smaller"),
+    ("z5_p5", 50, "In-order visits the left subtree"),
+    ("z5_p6", 30, "Pre-order visits a node first"),
+])
+def test_a_wrong_click_on_a_tree_trace_explains_the_rule(app, puzzle_id, wrong, rule):
+    new_profile(app)
+    z5 = forest(app)
+    app.open_puzzle(z5, next(p for p in z5.puzzles if p.id == puzzle_id))
+    click_at(app, target(app, "node", wrong))
+    assert app.scene.session.glitches == 1 and rule in app.scene.message
+
+
+def open_heart_of_the_tree(app):
+    new_profile(app)
+    z5 = forest(app)
+    app.open_puzzle(z5, next(p for p in z5.puzzles if p.id == "z5_p4"))
+    return app.scene
+
+
+def test_deleting_a_node_with_two_children_asks_for_its_replacement(app):
+    scene = open_heart_of_the_tree(app)
+    click_at(app, target(app, "node", 3))
+    click(app, "Delete")
+    assert scene.session.moves == 0, "Delete alone makes no Move yet"
+    assert "takes its place" in scene.message
+    assert not button(app, "Delete").enabled
+
+    click_at(app, target(app, "node", 7))
+    assert scene.session.glitches == 1 and "in-order successor" in scene.message
+    assert 3 in scene.renderer.keys(), "the tree is unchanged"
+
+    click_at(app, target(app, "node", 3))
+    click(app, "Delete")
+    click_at(app, target(app, "node", 4))
+    settle(app)
+    assert scene.session.done and scene.renderer.keys() == [1, 4, 6, 7, 8, 10, 13, 14]
+
+
+def test_clicking_the_same_node_again_cancels_the_delete(app):
+    scene = open_heart_of_the_tree(app)
+    click_at(app, target(app, "node", 3))
+    click(app, "Delete")
+    click_at(app, target(app, "node", 3))
+    assert scene.session.moves == 0 and scene.session.glitches == 0
+    assert scene.selected == [] and not button(app, "Delete").enabled
+    click_at(app, target(app, "node", 3))
+    assert button(app, "Delete").enabled
+
+
+def test_a_hint_for_a_different_delete_cancels_the_pending_one(app):
+    scene = open_heart_of_the_tree(app)
+    click_at(app, target(app, "node", 6))
+    click(app, "Delete")
+    for _ in range(3):
+        click(app, "Hint")
+    assert scene.hinted() == (3,) and scene.selected == []
+    click_at(app, target(app, "node", 3))
+    assert scene.session.glitches == 0 and scene.selected == [3]
+
+
+def test_undo_drops_the_steps_of_the_undone_move(app):
+    new_profile(app)
+    z5 = forest(app)
+    app.open_puzzle(z5, next(p for p in z5.puzzles if p.id == "z5_p1"))
+    scene = app.scene
+    perform(app, Move.of("insert", 8, None, ""))
+    click(app, "Undo")
+    assert not scene.player.busy
+    settle(app)
+    assert scene.renderer.keys() == [] and not scene.renderer.leaving()
+
+
+def test_the_hint_points_at_the_replacement_while_one_is_being_chosen(app):
+    scene = open_heart_of_the_tree(app)
+    click_at(app, target(app, "node", 3))
+    click(app, "Delete")
+    for _ in range(3):
+        click(app, "Hint")
+    assert scene.hinted() == (4,)

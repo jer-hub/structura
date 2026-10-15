@@ -21,6 +21,10 @@ class StepPlayer:
         if self.current is None:
             self._advance()
 
+    def clear(self) -> None:
+        self.queue.clear()
+        self._advance()
+
     def _advance(self) -> None:
         self.current = self.queue.popleft() if self.queue else None
         self.timer = BEAT / self.speed if self.current else 0.0

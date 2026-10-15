@@ -46,7 +46,7 @@ class LessonScene(Scene):
             for move in self.model.parse(line):
                 self.code_panel.show_for(self.model.structure, move.op, beat.code)
                 self.player.play(self.model.apply(move))
-        self.renderer.sync(self.model)
+                self.renderer.sync(self.model)
         for line in beat.do:
             if line.startswith("visit"):
                 self.fx.ripple(self.renderer.center_of(int(line.split()[1])), theme.ACTIVE, radius=70)

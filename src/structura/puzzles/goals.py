@@ -189,20 +189,28 @@ class ScriptGoal(Goal):
         self.lines = self.spec.get("script") or [
             f"{self.ADD_OP[puzzle.structure]} {v}" for v in puzzle.tray
         ]
-        work = make(puzzle.structure, puzzle.initial)
-        self.prefix_keys = [work.key()]
-        for line in self.lines:
-            work.run([line])
-            self.prefix_keys.append(work.key())
-        self.target_key = work.key()
+        works = [make(puzzle.structure, puzzle.initial)]
+        self.lines_done = {works[0].key(): 0}       # state -> script lines it has carried out
+        for k, line in enumerate(self.lines, 1):
+            reached = {}
+            for work in works:
+                for moves in work.alternatives(line):
+                    nxt = work.copy()
+                    for m in moves:
+                        nxt.apply(m)
+                    reached.setdefault(nxt.key(), nxt)
+            works = list(reached.values())
+            for key in reached:
+                self.lines_done.setdefault(key, k)
+        self.target_keys = {w.key() for w in works}
 
     def done(self, st):
-        return st.model.key() == self.target_key
+        return st.model.key() in self.target_keys
 
     def plan(self, st):
         key = st.model.key()
-        if key in self.prefix_keys:
-            k = self.prefix_keys.index(key)
+        if key in self.lines_done:
+            k = self.lines_done[key]
             work = st.model.copy()
             moves = []
             for line in self.lines[k:]:

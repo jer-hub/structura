@@ -24,7 +24,7 @@ from ...models import Move
 from .. import theme
 from ..anim import approach
 from ..fx import mix
-from .base import Renderer, Target
+from .base import BADGE_R, Renderer, Target, draw_badge
 
 HEAD = "head"     # the head pointer: an arrow's start, and the insert-at-head slot key
 FIELD = 0.36      # next field width, as a fraction of the value box
@@ -33,7 +33,6 @@ HEAD_W = 44       # room for the head box
 NULL_SIZE = (52, 28)
 NULL_W = 56       # room for the null box
 MIN_GAP, MAX_GAP = 28, 60      # arrow length between nodes
-BADGE_R = 12      # insert badge radius
 BADGE_DROP = 28   # how far below the row a badge hangs
 ARROW = mix(theme.MUTED, theme.TEXT, 0.35)
 
@@ -191,11 +190,7 @@ class LinkedListRenderer(Renderer):
                 c = (int(bx + ox), int(by + oy))
                 for y in range(int(self.rect.centery + 6 + oy), int(c[1] - BADGE_R), 6):
                     pygame.draw.line(surf, colour, (c[0], y), (c[0], y + 2), 2)
-                r = BADGE_R + 3 * hinted
-                pygame.draw.circle(surf, mix(theme.PANEL, colour, 0.18), c, r)
-                pygame.draw.circle(surf, colour, c, r, 2)
-                pygame.draw.line(surf, colour, (c[0] - 5, c[1]), (c[0] + 5, c[1]), 2)
-                pygame.draw.line(surf, colour, (c[0], c[1] - 5), (c[0], c[1] + 5), 2)
+                draw_badge(surf, c, colour, hinted)
 
         for a, b, bowed in self.arrows():
             x1, y1 = self.arrow_start(a)

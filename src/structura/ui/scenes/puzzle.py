@@ -34,6 +34,7 @@ class PuzzleScene(Scene):
         if table := self.session.goal.big_o_table():
             self.code_panel.show_table(table)
         self.selected: list[int] = []
+        self.replacing: int | None = None    # key being deleted, awaiting its replacement
         self.hint_move: Move | None = None
         self.glitch_flash = 0.0
         self.fx = Effects()
@@ -54,8 +55,8 @@ class PuzzleScene(Scene):
             self.buttons.append(row.add("Swap", self._swap, enabled=len(self.selected) == 2 and not s.done,
                                         accent=self.zone.color))
         if "delete" in self.puzzle.ops:
-            self.buttons.append(row.add("Delete", self._delete, enabled=len(self.selected) == 1 and not s.done,
-                                        accent=theme.BAD))
+            ready = len(self.selected) == 1 and self.replacing is None
+            self.buttons.append(row.add("Delete", self._delete, enabled=ready and not s.done, accent=theme.BAD))
         for op, takes_tray in BUTTON_OPS.items():
             if op in self.puzzle.ops:
                 move = Move.of(op, s.tray_next) if takes_tray else Move.of(op)
@@ -95,7 +96,7 @@ class PuzzleScene(Scene):
     # ---- actions -----------------------------------------------------------
     def _attempt(self, move: Move):
         out = self.session.try_move(move)
-        self.selected = []
+        self.selected, self.replacing = [], None
         if not out.ok:
             self.glitch_flash = 0.6
             cells = [a for a in move.args[:2] if isinstance(a, int)] if move.op in ("swap", "visit", "delete") else []
@@ -136,18 +137,38 @@ class PuzzleScene(Scene):
             self._attempt(Move.of("swap", *self.selected))
 
     def _delete(self):
-        if len(self.selected) == 1:
-            self._attempt(Move.of("delete", self.selected[0]))
+        if len(self.selected) != 1:
+            return
+        (key,) = self.selected
+        if not self.session.model.needs_replacement(key):
+            self._attempt(self.session.model.delete_move(key))
+            return
+        self.replacing = key
+        self._say(f"{key} has two children, so another node takes its place. "
+                  f"Click the node that replaces {key}, or click {key} again to cancel.", theme.ACTIVE)
+        self._sync()
+
+    def _replace_with(self, key):
+        deleting, self.replacing = self.replacing, None
+        if key != deleting:
+            self._attempt(self.session.model.delete_move(deleting, key))
+            return
+        self.selected = []
+        self._say("Delete cancelled.", theme.MUTED)
+        self._sync()
 
     def _undo(self):
         if self.session.undo():
-            self.selected, self.hint_move = [], None
+            self.selected, self.hint_move, self.replacing = [], None, None
+            self.player.clear()
             self._say("Undone. (The Move still counts toward your score.)", theme.MUTED)
             self._sync()
 
     def _hint(self):
         tier, text, move = self.session.hint()
         self.hint_move = move
+        if move is not None and self.replacing is not None and move.args[:1] != (self.replacing,):
+            self.replacing, self.selected = None, []
         self._say(text, theme.ACTIVE)
         self._sync()
 
@@ -163,6 +184,8 @@ class PuzzleScene(Scene):
                 continue
             if t.kind == "slot":
                 self._attempt(self.renderer.slot_move(t.key, self.session.tray_next))
+            elif self.replacing is not None:
+                self._replace_with(t.key)
             elif "visit" in self.puzzle.ops:
                 self._attempt(Move.of("visit", t.key))
             elif "swap" in self.puzzle.ops or "delete" in self.puzzle.ops:
@@ -183,6 +206,19 @@ class PuzzleScene(Scene):
         self.fx.update(dt)
         self.board_shake.update(dt)
         self.glitch_flash = max(0.0, self.glitch_flash - dt)
+
+    def hinted(self) -> tuple:
+        """Keys of the elements the third-tier Hint points at."""
+        m = self.hint_move
+        if m is None:
+            return ()
+        if m.op == "swap":
+            return m.args
+        if m.op == "delete" and self.replacing is not None and m.args[0] == self.replacing:
+            return (m.args[1],)
+        if m.op in ("visit", "delete"):
+            return (m.args[0],)
+        return ()
 
     def _draw_question(self, surf):
         """Quiz Puzzles: the operation script, worked in the player's head, not on the board.
@@ -216,19 +252,11 @@ class PuzzleScene(Scene):
             if len(s.state.tray) > 1:
                 rest = "  ".join(str(v) for v in s.state.tray[1:])
                 theme.draw_text(surf, f"then  {rest}", (VIZ.x + 170, VIZ.y + 16), 18, theme.MUTED)
-        hinted, hint_slot = (), None
-        m = self.hint_move
-        if m is not None:
-            if m.op == "swap":
-                hinted = m.args
-            elif m.op in ("visit", "delete"):
-                hinted = (m.args[0],)
-            else:
-                hint_slot = self.renderer.slot_for(m)
+        hint_slot = self.renderer.slot_for(self.hint_move) if self.hint_move else None
         if self.answering:
             self._draw_question(surf)
         else:
-            self.renderer.draw(surf, self.player.highlights(), self.selected, hinted, hint_slot,
+            self.renderer.draw(surf, self.player.highlights(), self.selected, self.hinted(), hint_slot,
                                offset=self.board_shake.offset())
         step = self.player.current
         self.code_panel.draw(surf, step.kind if step else None)

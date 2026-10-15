@@ -25,6 +25,16 @@ from .. import theme
 from ..fx import Shake, Tween, ease_in_out_sine, ease_out_back, lerp, mix
 
 TRAVEL = 0.45     # seconds for an element to reach its new place
+BADGE_R = 12      # insert badge radius
+
+
+def draw_badge(surf, centre, colour, hinted: bool) -> None:
+    """The "+" badge that marks an insert slot; a hinted one is drawn larger."""
+    r = BADGE_R + 3 * hinted
+    pygame.draw.circle(surf, mix(theme.PANEL, colour, 0.18), centre, r)
+    pygame.draw.circle(surf, colour, centre, r, 2)
+    pygame.draw.line(surf, colour, (centre[0] - 5, centre[1]), (centre[0] + 5, centre[1]), 2)
+    pygame.draw.line(surf, colour, (centre[0], centre[1] - 5), (centre[0], centre[1] + 5), 2)
 
 
 @dataclass
@@ -250,6 +260,8 @@ class Renderer:
         items.sort(key=lambda item: item[1][0] in self.motions)
         for key, (eid, value) in items:
             x, y, s = self.pos[eid]
+            if s <= 0:
+                continue
             dx, dy = self.draw_offset(eid)
             colour = highlights.get(eid)
             grow = 1 + (0.08 * pulse if colour else 0)

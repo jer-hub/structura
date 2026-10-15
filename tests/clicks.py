@@ -164,3 +164,29 @@ def play_queue(app, move: Move):
 @promised_targets("queue")
 def queue_targets(model, show_slots):
     return set()                                  # Moves come from the Enqueue and Dequeue buttons
+
+
+# ---- binary search tree -------------------------------------------------------------
+@player("bst")
+def play_bst(app, move: Move):
+    if move.op == "visit":
+        click_at(app, target(app, "node", move.args[0]))
+    elif move.op == "insert":
+        _, parent, side = move.args
+        click_at(app, target(app, "slot", (parent, side)))
+    elif move.op == "delete":
+        value, replacement = move.args
+        click_at(app, target(app, "node", value))
+        click(app, "Delete")
+        if replacement is not None:
+            click_at(app, target(app, "node", replacement))
+    else:
+        raise AssertionError(move)
+
+
+@promised_targets("bst")
+def bst_targets(model, show_slots):
+    """Nodes keyed by value; slots keyed (parent value, side), the root's as (None, "")."""
+    nodes = {("node", v) for v in model.values()}
+    slots = {("slot", s) for s in model.empty_slots()} if show_slots else set()
+    return nodes | slots
