@@ -54,9 +54,15 @@ def build(profile: Profile, results: dict[str, Result], zones: list[Zone]) -> di
     return {**body, "signature": _sign(body)}
 
 
-def verify(report: dict) -> bool:
+def verify(report: object) -> bool:
+    """True only for an unedited report. Anything else, however malformed, is False."""
+    if not isinstance(report, dict) or report.get("format") != FORMAT:
+        return False
+    signature = report.get("signature")
+    if not isinstance(signature, str):
+        return False
     body = {k: v for k, v in report.items() if k != "signature"}
-    return report.get("format") == FORMAT and hmac.compare_digest(_sign(body), report.get("signature", ""))
+    return hmac.compare_digest(_sign(body).encode(), signature.encode("utf-8", "surrogatepass"))
 
 
 def default_folder() -> Path:

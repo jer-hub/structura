@@ -31,3 +31,23 @@ def test_report_signature_detects_edits(tmp_path):
     assert data["results"][0]["reference_moves"] == 1
     data["results"][0]["stars"] = 3
     assert not report.verify(data)
+
+
+def exported_report(tmp_path) -> dict:
+    s = Store(tmp_path / "t.db")
+    p = s.create_profile("Ana", "2024-001")
+    return json.loads(report.export(p, s.results(p.id), [zone()], folder=tmp_path).read_text())
+
+
+def test_a_report_without_a_text_signature_is_not_verified(tmp_path):
+    data = exported_report(tmp_path)
+    for signature in (12345, ["abc"], None, "ñandú", json.loads('"\\ud800"')):
+        assert not report.verify({**data, "signature": signature}), signature
+    del data["signature"]
+    assert not report.verify(data)
+
+
+def test_something_that_is_not_a_report_is_not_verified(tmp_path):
+    data = exported_report(tmp_path)
+    for other in ([data], "a report", 7, None, {"name": "Ana"}, {**data, "format": "something-else/1"}):
+        assert not report.verify(other), other

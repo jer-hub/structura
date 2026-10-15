@@ -4,10 +4,14 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A genuine report exported by the game still verifies
-- [ ] A report with its signature removed is not verified, and nothing raises
-- [ ] A report whose signature is a number, a list or null is not verified, and nothing raises
-- [ ] Something that isn't a report object (a list, a string, a JSON object without the report format) is not verified, and nothing raises
-- [ ] Tests sit at the report utility seam (spec Seam 5) and only use the public export and verify behaviour
+- [x] A genuine report exported by the game still verifies
+- [x] A report with its signature removed is not verified, and nothing raises
+- [x] A report whose signature is a number, a list or null is not verified, and nothing raises
+- [x] Something that isn't a report object (a list, a string, a JSON object without the report format) is not verified, and nothing raises
+- [x] Tests sit at the report utility seam (spec Seam 5) and only use the public export and verify behaviour
+
+## Comments
+
+Done. `verify` returns False for anything that isn't an object in the Progress Report format with a text signature. It compares signatures as bytes, encoding with `surrogatepass`, because `hmac.compare_digest` raises on non-ASCII text, and JSON can hold strings with lone surrogates (such as `"\ud800"`) that plain UTF-8 can't encode. Tests cover non-text, non-ASCII and lone-surrogate signatures, a missing signature, and non-report JSON values. Ticket 11 is now unblocked.
