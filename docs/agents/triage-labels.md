@@ -12,4 +12,6 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
+Separately from triage, an implementation ticket whose work is finished is marked `done`. It's a closed state, not a triage role: `/triage` should leave `done` tickets alone, and a ticket blocked only by `done` tickets is unblocked.
+
 Edit the right-hand column to match whatever vocabulary you actually use.
