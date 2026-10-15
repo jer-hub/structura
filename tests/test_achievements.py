@@ -17,9 +17,12 @@ def zone(zid, name, *puzzles):
 ZONE = zone("z", "Test Zone", puzzle("g", "guided"), puzzle("c", "challenge"), puzzle("b", "boss"))
 
 
-def result(pid, stars=2, glitches=1, hints=1, attempts=1):
+def result(pid, stars=2, glitches=1, hints=1, attempts=1, ever_clean=None):
+    """`ever_clean` defaults to whether this best attempt was itself clean."""
+    if ever_clean is None:
+        ever_clean = glitches == 0 and hints == 0
     return pid, Result(pid, stars, moves=4, glitches=glitches, hints=hints, attempts=attempts,
-                       completed_at="2026-10-15T00:00:00+00:00")
+                       completed_at="2026-10-15T00:00:00+00:00", ever_clean=ever_clean)
 
 
 def earned(*results) -> dict[str, bool]:
@@ -40,6 +43,11 @@ def test_clean_hands_needs_a_challenge_or_boss_with_no_glitches_and_no_hints():
     assert not earned(result("c", glitches=0, hints=1))["Clean Hands"]
     assert earned(result("c", glitches=0, hints=0))["Clean Hands"]
     assert earned(result("b", glitches=0, hints=0))["Clean Hands"]
+
+
+def test_clean_hands_counts_a_clean_run_even_when_the_best_attempt_was_messy():
+    assert earned(result("c", glitches=1, hints=0, ever_clean=True))["Clean Hands"]
+    assert not earned(result("g", glitches=1, hints=0, ever_clean=True))["Clean Hands"], "still not Guided"
 
 
 def test_boss_breaker_needs_a_boss():

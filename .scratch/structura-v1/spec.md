@@ -150,7 +150,7 @@ v1 ships, in order on the **Zone Map**: The Array Plains (done), The Linked Mars
 - **PuzzleSession** owns all rules: Tray order, legality, Strict Puzzles, Glitches, Disruptions keyed to net Move count, undo (Moves stay counted), Hint tiers (tiers 1 and 2 written by people with tokens, tier 3 generated and highlighted), Stars.
 - **Star formula:** efficiency = (Moves + Glitches) / Reference Solution Moves. 3 Stars if efficiency ≤ 1.0 and no Hints. 2 Stars if efficiency ≤ 1.5 and at most one Hint. Otherwise 1 Star. Time never counts.
 - **No failure states and no difficulty modes.** Timers and lose conditions are explicitly rejected.
-- **Persistence:** SQLite in the user's app-data folder. Profiles hold language and animation speed, and results keep the best attempt while counting every attempt. Achievements are derived from results, never stored.
+- **Persistence:** SQLite in the user's app-data folder. Profiles hold language and animation speed, and results keep the best attempt while counting every attempt and remembering whether any attempt was clean (no Glitches, no Hints). Achievements are derived from results, never stored.
 - **Progress Report:** JSON with an HMAC signature using a key built into the game. This deters casual editing and is accepted as not secure against a student who reads the source.
 - **Code Mirror:** snippets in Python and Java with `@@kind` line markers. One source script generates both files per snippet.
 - **Animations** are visual-only and must never delay game state or scene changes. Scenes switch immediately, and a fade is drawn over them.

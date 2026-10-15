@@ -1,4 +1,5 @@
-"""Achievements are derived from results each time, so nothing extra is stored."""
+"""Achievements are derived from results each time; nothing about them is stored
+except each result's "ever finished clean" flag, which Clean Hands reads."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,7 +20,7 @@ def evaluate(zones: list[Zone], results: dict[str, Result]) -> list[Achievement]
     out = [
         Achievement("First Repair", "Finish any Puzzle.", bool(done)),
         Achievement("Clean Hands", "Finish a Challenge or Boss Puzzle with no Glitches and no Hints.",
-                    any(r.glitches == 0 and r.hints == 0 for pid, r in done.items()
+                    any(r.ever_clean for pid, r in done.items()
                         if any(p.id == pid and p.stage != "guided" for z in zones for p in z.puzzles))),
         Achievement("Boss Breaker", "Beat any Boss.",
                     any(p.id in done for z in zones for p in z.puzzles if p.stage == "boss")),

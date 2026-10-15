@@ -33,6 +33,7 @@ class Result:
     hints: int
     attempts: int
     completed_at: str
+    ever_clean: bool             # any attempt, not only the best, finished with no Glitches and no Hints
 
 
 SCHEMA = """
@@ -53,9 +54,32 @@ CREATE TABLE IF NOT EXISTS result (
     hints INTEGER NOT NULL,
     attempts INTEGER NOT NULL DEFAULT 1,
     completed_at TEXT NOT NULL,
+    ever_clean INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (profile_id, puzzle_id)
 );
 """
+
+
+def _has_ever_clean(db: sqlite3.Connection) -> bool:
+    return "ever_clean" in {row[1] for row in db.execute("PRAGMA table_info(result)")}
+
+
+def _migrate(db: sqlite3.Connection) -> None:
+    """Bring a database from an earlier version up to SCHEMA. CREATE TABLE IF NOT
+    EXISTS leaves an existing table as it was, so new columns are added here.
+    sqlite3 commits ALTER TABLE by itself, so the column and its back-fill share
+    one explicit transaction: a crash between them must not leave the column unfilled."""
+    if _has_ever_clean(db):
+        return
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        if not _has_ever_clean(db):               # another window may have upgraded it first
+            db.execute("ALTER TABLE result ADD COLUMN ever_clean INTEGER NOT NULL DEFAULT 0")
+            db.execute("UPDATE result SET ever_clean = (glitches = 0 AND hints = 0)")
+        db.execute("COMMIT")
+    except BaseException:
+        db.execute("ROLLBACK")
+        raise
 
 
 def _now() -> str:
@@ -66,8 +90,13 @@ class Store:
     def __init__(self, path: Path | str | None = None):
         self.path = Path(path) if path else data_dir() / "structura.db"
         self.db = sqlite3.connect(self.path)
-        self.db.execute("PRAGMA foreign_keys = ON")
-        self.db.executescript(SCHEMA)
+        try:
+            self.db.execute("PRAGMA foreign_keys = ON")
+            self.db.executescript(SCHEMA)
+            _migrate(self.db)
+        except BaseException:
+            self.db.close()
+            raise
 
     def close(self) -> None:
         self.db.close()
@@ -98,24 +127,27 @@ class Store:
     # ---- results -------------------------------------------------------
     def results(self, profile_id: int) -> dict[str, Result]:
         rows = self.db.execute(
-            "SELECT puzzle_id, stars, moves, glitches, hints, attempts, completed_at FROM result WHERE profile_id = ?",
+            "SELECT puzzle_id, stars, moves, glitches, hints, attempts, completed_at, ever_clean "
+            "FROM result WHERE profile_id = ?",
             (profile_id,))
-        return {r[0]: Result(*r) for r in rows}
+        return {r[0]: Result(*r[:-1], ever_clean=bool(r[-1])) for r in rows}
 
     def record(self, profile_id: int, puzzle_id: str, stars: int, moves: int, glitches: int, hints: int) -> Result:
-        """Keep the best attempt (most stars, then fewest Moves); always count the attempt."""
+        """Keep the best attempt (most stars, then fewest Moves); always count the attempt,
+        and remember if any attempt was clean."""
         old = self.results(profile_id).get(puzzle_id)
+        ever_clean = (glitches == 0 and hints == 0) or (old is not None and old.ever_clean)
         if old is None:
             self.db.execute(
-                "INSERT INTO result VALUES (?, ?, ?, ?, ?, ?, 1, ?)",
-                (profile_id, puzzle_id, stars, moves, glitches, hints, _now()))
+                "INSERT INTO result VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)",
+                (profile_id, puzzle_id, stars, moves, glitches, hints, _now(), ever_clean))
         elif (stars, -moves) > (old.stars, -old.moves):
             self.db.execute(
-                "UPDATE result SET stars=?, moves=?, glitches=?, hints=?, attempts=attempts+1, completed_at=? "
-                "WHERE profile_id=? AND puzzle_id=?",
-                (stars, moves, glitches, hints, _now(), profile_id, puzzle_id))
+                "UPDATE result SET stars=?, moves=?, glitches=?, hints=?, attempts=attempts+1, completed_at=?, "
+                "ever_clean=? WHERE profile_id=? AND puzzle_id=?",
+                (stars, moves, glitches, hints, _now(), ever_clean, profile_id, puzzle_id))
         else:
-            self.db.execute("UPDATE result SET attempts=attempts+1 WHERE profile_id=? AND puzzle_id=?",
-                            (profile_id, puzzle_id))
+            self.db.execute("UPDATE result SET attempts=attempts+1, ever_clean=? WHERE profile_id=? AND puzzle_id=?",
+                            (ever_clean, profile_id, puzzle_id))
         self.db.commit()
         return self.results(profile_id)[puzzle_id]

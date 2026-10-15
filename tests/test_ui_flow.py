@@ -353,6 +353,38 @@ def test_achievements_screen_lights_first_repair_after_one_puzzle(app):
     app.draw()
 
 
+def test_clean_hands_is_earned_by_a_clean_run_that_scores_less_than_a_messy_one(app):
+    new_profile(app)
+    z1 = app.zones[0]
+    puzzle = next(p for p in z1.puzzles if p.stage == "challenge")
+    reference = list(reference_moves(puzzle))
+
+    app.open_puzzle(z1, puzzle)
+    perform(app, Move.of("swap", 0, 2))
+    assert app.scene.session.glitches == 1
+    for move in reference:
+        play(app, move)
+    click(app, "See Results")
+    assert app.scene.stars == 2
+    app.open_map()
+    click(app, "Achievements")
+    assert "Clean Hands" not in earned_titles(app)
+
+    app.open_puzzle(z1, puzzle)
+    for _ in range(3):                            # Undo doesn't refund the Move
+        play(app, reference[0])
+        click(app, "Undo")
+    for move in reference:
+        play(app, move)
+    assert (app.scene.session.glitches, app.scene.session.hints_used) == (0, 0)
+    click(app, "See Results")
+    assert app.scene.stars == 1
+
+    app.open_map()
+    click(app, "Achievements")
+    assert "Clean Hands" in earned_titles(app)
+
+
 def test_achievements_fit_on_screen_with_every_planned_zone(app):
     """The spec plans about a dozen Zones, so about sixteen Achievements."""
     new_profile(app)
