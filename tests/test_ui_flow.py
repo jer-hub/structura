@@ -1,5 +1,6 @@
 """Plays the thin slice headlessly by sending real pygame mouse and text events:
 Profile -> Zone Map -> Z1 Lesson -> every Z1 Puzzle -> Results -> Progress Report."""
+import dataclasses
 import json
 import os
 
@@ -49,6 +50,15 @@ def new_profile(app, name="Ana Cruz", sid="2024-0001", language="Java"):
     type_into(app, "Student ID", sid)
     click(app, language)
     click(app, "Create")
+
+
+def solve_to_results(app, zone, puzzle_id):
+    puzzle = next(p for p in zone.puzzles if p.id == puzzle_id)
+    app.open_puzzle(zone, puzzle)
+    for move in reference_moves(puzzle):
+        play(app, move)
+    click(app, "See Results")
+    return puzzle
 
 
 # ---- tests ----------------------------------------------------------------
@@ -213,16 +223,43 @@ def test_a_lesson_animates_at_the_profile_speed(app):
     assert first_lesson_motion_time(app, "Speed: 2x") == pytest.approx(at_1x / 2, rel=0.15)
 
 
+# ---- Achievements -----------------------------------------------------------------
+def earned_titles(app):
+    return [a.title for a in app.scene.achievements if a.earned]
+
+
+def test_achievements_screen_lights_first_repair_after_one_puzzle(app):
+    new_profile(app)
+    click(app, "Achievements")
+    titles = [a.title for a in app.scene.achievements]
+    assert earned_titles(app) == []
+    assert "First Repair" in titles and {f"Master of {z.name}" for z in app.zones} <= set(titles)
+    app.draw()
+    click(app, "Back")
+    assert isinstance(app.scene, ZoneMapScene)
+
+    solve_to_results(app, app.zones[0], app.zones[0].puzzles[0].id)
+    app.open_map()
+    click(app, "Achievements")
+    assert "First Repair" in earned_titles(app)
+    app.draw()
+
+
+def test_achievements_fit_on_screen_with_every_planned_zone(app):
+    """The spec plans about a dozen Zones, so about sixteen Achievements."""
+    new_profile(app)
+    planned = app.zones[0]
+    app.zones = [dataclasses.replace(planned, id=f"z{i}", name=f"Zone {i}") for i in range(12)]
+    click(app, "Achievements")
+    cards = [app.scene.card(i) for i in range(len(app.scene.achievements))]
+    back = button(app, "Back").rect
+    screen = pygame.Rect(0, 0, 1280, 720)
+    assert len(cards) == 16
+    assert all(screen.contains(c) and not c.colliderect(back) for c in cards)
+    assert not any(a.colliderect(b) for i, a in enumerate(cards) for b in cards[i + 1:])
+
+
 # ---- watching the Reference Solution ------------------------------------------
-def solve_to_results(app, zone, puzzle_id):
-    puzzle = next(p for p in zone.puzzles if p.id == puzzle_id)
-    app.open_puzzle(zone, puzzle)
-    for move in reference_moves(puzzle):
-        play(app, move)
-    click(app, "See Results")
-    return puzzle
-
-
 def watch(app, dt=0.05, limit=60.0):
     """Run the replay until it offers Back to Results. Returns (seconds, every
     (Moves made, message) pair shown along the way)."""

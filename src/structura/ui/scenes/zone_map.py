@@ -35,6 +35,7 @@ class ZoneMapScene(Scene):
             row.add("Export Progress Report", self._export, accent=theme.GOOD),
             row.add(f"Code: {'Java' if lang == 'java' else 'Python'}", self._toggle_language),
             row.add(f"Speed: {self.app.profile.speed:g}x", self._cycle_speed),
+            row.add("Achievements", self._achievements),
             row.add("Switch Profile", self._switch),
         ]
 
@@ -54,6 +55,10 @@ class ZoneMapScene(Scene):
         p.speed = min(later) if later else SPEEDS[0]
         self.app.store.update_profile(p)
         self._build()
+
+    def _achievements(self):
+        from .achievements import AchievementsScene
+        self.app.go(AchievementsScene(self.app))
 
     def _switch(self):
         from .profiles import ProfileScene
