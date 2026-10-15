@@ -9,6 +9,8 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .. import bundle
+
 PUZZLE_TYPES = ("build", "repair", "trace", "optimize", "sort", "pathfind", "select", "code")
 STAGES = ("guided", "challenge", "boss")
 
@@ -127,10 +129,7 @@ def load_zone(path: Path) -> Zone:
 
 
 def content_dir() -> Path:
-    import sys
-
-    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[3]))
-    return base / "content" / "zones"
+    return bundle.locate(bundle.ZONES)
 
 
 def load_all(directory: Path | None = None) -> list[Zone]:

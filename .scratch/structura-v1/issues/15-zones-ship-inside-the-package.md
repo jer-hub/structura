@@ -13,3 +13,7 @@ This is also groundwork for the Windows executable (ticket 13), which needs cont
 - [ ] The package declares the Zone files as package data alongside the snippets
 - [ ] No doc, test or tool still refers to the old location
 - [ ] The full suite passes, including the content contract over every shipped Puzzle
+
+## Comments
+
+- Since ticket 13, the Zone folder's location is named once in `src/structura/bundle.py` (`ZONES = Folder("content/zones", in_package=False)`). Moving the files means changing that to `Folder("structura/content/zones", in_package=True)` (or similar); the Windows build and `tests/test_packaging.py` follow it automatically.

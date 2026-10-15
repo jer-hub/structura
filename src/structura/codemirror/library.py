@@ -4,10 +4,11 @@ Snippet lines end with `@@kind[,kind]` to say which Step kinds they execute.
 """
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+
+from .. import bundle
 
 LANGUAGES = ("python", "java")
 _EXT = {"python": "py", "java": "java"}
@@ -37,8 +38,7 @@ class Snippet:
 
 
 def _dir() -> Path:
-    base = getattr(sys, "_MEIPASS", None)
-    return Path(base) / "structura" / "codemirror" / "snippets" if base else Path(__file__).parent / "snippets"
+    return bundle.locate(bundle.SNIPPETS)
 
 
 @lru_cache(maxsize=None)
