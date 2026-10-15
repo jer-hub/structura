@@ -2,7 +2,7 @@
 
 **What to build:** An instructor downloads every student's Progress Report from a Google Classroom assignment into one folder and runs a single command that produces one CSV spreadsheet: one row per student per Puzzle (student name, student ID, Zone, Puzzle, Stage, Stars, Moves, Reference Solution Moves, Glitches, Hints, attempts, completed date) plus a "verified" column. A report whose signature doesn't verify is still included but flagged, and a file that isn't a Progress Report is skipped with a warning. It runs from source and needs no GUI. Usage is documented for faculty.
 
-**Blocked by:** None (can start immediately)
+**Blocked by:** 14 (A malformed Progress Report is reported as unverified instead of crashing)
 
 **Status:** ready-for-agent
 
